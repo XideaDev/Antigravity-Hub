@@ -340,7 +340,7 @@ enum ProfileEngine {
         )
         try writeMetadata(metadata, to: profile)
 
-        try linkHostDirectories(into: profile, policy: request.symlinkPolicy)
+        try applySymlinkPolicy(request.symlinkPolicy, to: profile)
         if request.inheritHostConfig {
             inheritHostConfiguration(into: profile)
         }
@@ -352,6 +352,62 @@ enum ProfileEngine {
         return profile
     }
 
+    /// The fields a profile actually exposes for editing.
+    ///
+    /// Everything else is either a fact (creation date, version) or lives on
+    /// Google's side — the signed-in account cannot be changed here, only by
+    /// signing in again inside Antigravity.
+    struct ProfileEdits {
+        var name: String
+        var description: String
+        var symlinkPolicy: SymlinkPolicy
+    }
+
+    /// Applies edits in place, renaming the sandbox first if asked.
+    ///
+    /// Renaming is safe: the sandbox's OAuth token, `settings.json`, `config/`
+    /// and `.antigravity/` were all verified to contain no self-referential
+    /// paths, so the signed-in account survives the move. The only residue is
+    /// the old path appearing as text inside historical conversation
+    /// transcripts, which is cosmetic.
+    @discardableResult
+    static func update(_ profile: Profile, with edits: ProfileEdits) throws -> Profile {
+        var target = profile
+        let trimmedName = edits.name.trimmingCharacters(in: .whitespaces)
+
+        if trimmedName != profile.name {
+            let pattern = "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            guard trimmedName.range(of: pattern, options: .regularExpression) != nil else {
+                throw EngineError.invalidName(trimmedName)
+            }
+            guard !allProfiles().contains(where: { $0.name == trimmedName }) else {
+                throw EngineError.profileExists(trimmedName)
+            }
+            // Moving the directory out from under a running Chromium would
+            // corrupt its state, so require it to be stopped first.
+            if runningPID(of: profile) != nil {
+                throw EngineError.alreadyRunning(profile.name)
+            }
+
+            let destination = root.appendingPathComponent(trimmedName)
+            try FileManager.default.moveItem(at: profile.directory, to: destination)
+            removeShortcut(for: profile.name)
+            target = Profile(name: trimmedName, directory: destination)
+        }
+
+        var metadata = metadata(of: target)
+        metadata.name = target.name
+        metadata.description = edits.description.trimmingCharacters(in: .whitespaces).isEmpty
+            ? nil
+            : edits.description.trimmingCharacters(in: .whitespaces)
+        metadata.symlinkPolicy = edits.symlinkPolicy.rawValue
+        try writeMetadata(metadata, to: target)
+
+        try applySymlinkPolicy(edits.symlinkPolicy, to: target)
+        createShortcut(for: target)
+        return target
+    }
+
     private static func writeMetadata(_ metadata: ProfileMetadata, to profile: Profile) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -361,24 +417,51 @@ enum ProfileEngine {
                                               ofItemAtPath: profile.metadataFile.path)
     }
 
-    /// Exposes parts of the real home inside the sandbox via symlinks.
-    private static func linkHostDirectories(into profile: Profile, policy: SymlinkPolicy) throws {
-        guard policy != .none else { return }
-        let realHome = FileManager.default.homeDirectoryForCurrentUser
+    /// Exposes parts of the real home inside the sandbox via symlinks, and
+    /// removes the ones a tightened policy no longer wants.
+    ///
+    /// Safe to re-run: it is the same routine used at creation, so changing a
+    /// profile's policy later reconciles the existing sandbox rather than
+    /// rebuilding it.
+    private static func applySymlinkPolicy(_ policy: SymlinkPolicy, to profile: Profile) throws {
         let fm = FileManager.default
+        let realHome = fm.homeDirectoryForCurrentUser
 
-        var names = ["Desktop", "Documents", "Downloads", ".gitconfig", ".bash_profile", ".bashrc", ".zshrc"]
-        if policy == .full {
-            names += [".ssh", ".config"]
-        }
+        // `sensitive` marks the two dot-directories that "minimal" deliberately
+        // leaves out, so the policy can be tightened after the fact.
+        let entries: [(name: String, sensitive: Bool)] = [
+            ("Desktop", false), ("Documents", false), ("Downloads", false),
+            (".gitconfig", false), (".bash_profile", false),
+            (".bashrc", false), (".zshrc", false),
+            (".ssh", true), (".config", true),
+        ]
 
-        for name in names {
-            let source = realHome.appendingPathComponent(name)
-            let destination = profile.homeDirectory.appendingPathComponent(name)
-            guard fm.fileExists(atPath: source.path),
-                  !fm.fileExists(atPath: destination.path) else { continue }
-            try? fm.createSymbolicLink(at: destination, withDestinationURL: source)
+        for entry in entries {
+            let destination = profile.homeDirectory.appendingPathComponent(entry.name)
+            let wanted = policy == .full || (policy == .minimal && !entry.sensitive)
+
+            if wanted {
+                let source = realHome.appendingPathComponent(entry.name)
+                guard fm.fileExists(atPath: source.path),
+                      !fm.fileExists(atPath: destination.path) else { continue }
+                try? fm.createSymbolicLink(at: destination, withDestinationURL: source)
+            } else {
+                removeIfSymlink(destination)
+            }
         }
+    }
+
+    /// Removes a path only when it is a symlink.
+    ///
+    /// The sandbox's `home/` also contains real directories created by
+    /// Antigravity itself; deleting those would destroy instance state, so a
+    /// policy change must never touch anything but the links we made.
+    private static func removeIfSymlink(_ url: URL) {
+        let fm = FileManager.default
+        guard let attributes = try? fm.attributesOfItem(atPath: url.path),
+              attributes[.type] as? FileAttributeType == .typeSymbolicLink
+        else { return }
+        try? fm.removeItem(at: url)
     }
 
     /// Copies editor preferences that are safe to share, and symlinks agent

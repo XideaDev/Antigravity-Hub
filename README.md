@@ -104,6 +104,29 @@ switching windows. Nothing is shared, so nothing can collide.
   so stopping a profile in one updates the other instantly. There is no second
   polling loop and no second source of truth.
 
+### Editing a profile — what can and cannot be changed
+
+| Field | Editable | Why |
+|---|---|---|
+| **Name** | Yes | Renames the sandbox directory and its Spotlight shortcut |
+| **Description** | Yes | Free-form metadata, yours to change at any time |
+| **Symlink policy** | Yes | Re-applied to the sandbox's `HOME` on save |
+| Google account | No | That state lives on Google's side — switch accounts inside Antigravity |
+| Created at | No | A historical fact |
+
+- **Renaming is safe.** Before implementing it we scanned a live profile: the
+  OAuth token, `settings.json`, `config/` and `.antigravity/` contain no
+  reference to the profile's own absolute path, so moving the directory does not
+  break the sign-in. Only old conversation records still mention the previous
+  path as text, which is cosmetic.
+- **Renaming requires the profile to be stopped first.** Moving a directory out
+  from under a running Chromium would corrupt its state, so the app refuses
+  rather than corrupting.
+- **Tightening the policy removes links immediately.** Switching from *full* to
+  *minimal* deletes the `.ssh` and `.config` symlinks from that sandbox. This is
+  the main lever for shrinking what an agent inside a profile can read — see
+  [Security boundary](#security-boundary--please-read).
+
 ### Everything else you actually need
 
 | | |
@@ -286,6 +309,7 @@ Sources/
 ├── OverviewWindow.swift      Overview window: card grid, detail pane, log tail
 ├── SettingsView.swift        In-panel settings and about pages
 ├── CreateProfileView.swift   New-profile form
+├── EditProfileView.swift     Rename, re-describe, re-apply the symlink policy
 ├── LogView.swift             Log tail viewer for the panel
 └── Preferences.swift         Preferences, menu bar glyphs, launch-at-login
 Resources/Info.plist

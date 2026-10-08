@@ -347,6 +347,7 @@ struct ProfileDetailPane: View {
     @State private var detail: ProfileSnapshot?
     @State private var log = ""
     @State private var confirmingDelete = false
+    @State private var isEditing = false
 
     private var shown: ProfileSnapshot { detail ?? profile }
 
@@ -363,6 +364,16 @@ struct ProfileDetailPane: View {
         }
         .background(Color.primary.opacity(0.025))
         .task(id: profile.name) { await reload() }
+        .sheet(isPresented: $isEditing) {
+            EditProfileView(profile: profile) { saved in
+                isEditing = false
+                // Close the pane on success: after a rename the old name no
+                // longer resolves, and the grid behind already shows the result.
+                if saved { onClose() }
+            }
+            .environmentObject(store)
+            .frame(width: 420, height: 420)
+        }
         .confirmationDialog(
             "确定删除分身「\(profile.name)」？",
             isPresented: $confirmingDelete,
@@ -384,6 +395,14 @@ struct ProfileDetailPane: View {
                 .font(.system(size: 14, weight: .medium))
                 .lineLimit(1)
             Spacer(minLength: 4)
+            Button { isEditing = true } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("编辑名字、描述与链接策略")
+
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .semibold))

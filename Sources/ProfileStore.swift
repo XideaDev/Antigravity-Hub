@@ -196,6 +196,39 @@ final class ProfileStore: ObservableObject {
         createError = nil
     }
 
+    // MARK: - Edit
+
+    /// Renames, re-describes or re-policies an existing profile. Returns the
+    /// failure message rather than throwing so the form can show it inline next
+    /// to the field that caused it.
+    func update(
+        _ snapshot: ProfileSnapshot,
+        name: String,
+        description: String,
+        policy: ProfileEngine.SymlinkPolicy
+    ) async -> Result<Void, Error> {
+        guard let profile = ProfileEngine.profile(named: snapshot.name) else {
+            return .failure(EngineError.profileMissing(snapshot.name))
+        }
+
+        let edits = ProfileEngine.ProfileEdits(
+            name: name,
+            description: description,
+            symlinkPolicy: policy
+        )
+
+        do {
+            let updated = try await Task.detached(priority: .userInitiated) {
+                try ProfileEngine.update(profile, with: edits)
+            }.value
+            await MainActor.run { self.showNotice("已保存 \(updated.name)") }
+            refresh()
+            return .success(())
+        } catch {
+            return .failure(error)
+        }
+    }
+
     // MARK: - Batch actions
 
     func launchAll() {

@@ -9,6 +9,7 @@ import SwiftUI
 enum PanelRoute: Equatable {
     case list
     case create
+    case edit(String)
     case logs(String)
     case settings
     case about
@@ -181,6 +182,7 @@ struct ConsolePanel: View {
         switch router.route {
         case .list: listHeader
         case .create: subHeader(title: "新建分身")
+        case let .edit(name): subHeader(title: "编辑 · \(name)")
         case let .logs(name): subHeader(title: "日志 · \(name)")
         case .settings: subHeader(title: "设置")
         case .about: subHeader(title: "关于 Antigravity Hub")
@@ -260,12 +262,28 @@ struct ConsolePanel: View {
             listContent
         case .create:
             CreateProfileView { if $0 { router.route = .list } }
+        case let .edit(name):
+            editContent(for: name)
         case let .logs(name):
             LogView(profileName: name)
         case .settings:
             SettingsPane { router.route = .about }
         case .about:
             AboutPane()
+        }
+    }
+
+    @ViewBuilder
+    private func editContent(for name: String) -> some View {
+        if let snapshot = store.profiles.first(where: { $0.name == name }) {
+            EditProfileView(profile: snapshot) { saved in
+                if saved { router.route = .list }
+            }
+        } else {
+            Text("分身不存在")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -322,7 +340,8 @@ struct ConsolePanel: View {
             isExpanded: expandedName == profile.name,
             isSelected: selectedName == profile.name,
             onToggleExpand: { toggleExpanded(profile) },
-            onShowLogs: { router.route = .logs(profile.name) }
+            onShowLogs: { router.route = .logs(profile.name) },
+            onEdit: { router.route = .edit(profile.name) }
         )
     }
 
@@ -452,6 +471,7 @@ struct ProfileRow: View {
     let isSelected: Bool
     let onToggleExpand: () -> Void
     let onShowLogs: () -> Void
+    let onEdit: () -> Void
 
     @State private var confirmingDelete = false
     @State private var hovering = false
@@ -570,6 +590,7 @@ struct ProfileRow: View {
                             store.showNotice("已复制账号")
                         }
                     }
+                    SoftButton(title: "编辑", systemImage: "pencil", action: onEdit)
                     Spacer(minLength: 4)
                     SoftButton(title: "删除", systemImage: "trash", tint: .red) {
                         confirmingDelete = true
