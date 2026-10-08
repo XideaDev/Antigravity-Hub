@@ -38,9 +38,12 @@ mkdir -p /tmp/clang-cache
 	-parse-as-library \
 	-disable-sandbox \
 	-target "$ARCH-apple-macos$TARGET_OS" \
+	-F "$ROOT/Frameworks" \
 	-framework SwiftUI \
 	-framework AppKit \
 	-framework ServiceManagement \
+	-framework Sparkle \
+	-Xlinker -rpath -Xlinker @executable_path/../Frameworks \
 	"$ROOT"/Sources/*.swift \
 	-o "$APP/Contents/MacOS/$BIN"
 
@@ -49,16 +52,32 @@ cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
 	cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 fi
+if [ -d "$ROOT/Resources/zh-Hans.lproj" ]; then
+	cp -R "$ROOT/Resources/zh-Hans.lproj" "$APP/Contents/Resources/"
+fi
+if [ -d "$ROOT/Resources/en.lproj" ]; then
+	cp -R "$ROOT/Resources/en.lproj" "$APP/Contents/Resources/"
+fi
+if [ -d "$ROOT/Frameworks/Sparkle.framework" ]; then
+	mkdir -p "$APP/Contents/Frameworks"
+	cp -R "$ROOT/Frameworks/Sparkle.framework" "$APP/Contents/Frameworks/"
+fi
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
 IDENTITY="${IDENTITY:-$(security find-identity -p codesigning -v 2>/dev/null | awk -F'"' '/Developer ID Application/ {print $2; exit}')}"
 if [ -n "$IDENTITY" ]; then
 	echo "==> Signing (Developer ID: $IDENTITY)"
+	if [ -d "$APP/Contents/Frameworks/Sparkle.framework" ]; then
+		codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP/Contents/Frameworks/Sparkle.framework" >/dev/null 2>&1 || true
+	fi
 	codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP" >/dev/null 2>&1 \
 		&& echo "    signed with Developer ID ($IDENTITY)" \
 		|| echo "    signing failed"
 else
 	echo "==> Signing (ad-hoc)"
+	if [ -d "$APP/Contents/Frameworks/Sparkle.framework" ]; then
+		codesign --force --sign - "$APP/Contents/Frameworks/Sparkle.framework" >/dev/null 2>&1 || true
+	fi
 	codesign --force --sign - "$APP" >/dev/null 2>&1 \
 		&& echo "    signed (ad-hoc)" \
 		|| echo "    skipped (codesign unavailable)"

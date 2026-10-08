@@ -283,17 +283,17 @@ enum ProfileEngine {
 
         var label: String {
             switch self {
-            case .full: return "完全"
-            case .minimal: return "精简"
-            case .none: return "不链接"
+            case .full: return "policy_full".localized
+            case .minimal: return "policy_minimal".localized
+            case .none: return "policy_none".localized
             }
         }
 
         var detail: String {
             switch self {
-            case .full: return "链接 ~/.ssh、~/.config、Desktop、Documents、Downloads 等全部真实目录"
-            case .minimal: return "只链接 git/shell 配置和常用项目目录，跳过 .ssh/.config"
-            case .none: return "几乎不链接任何真实目录，仅保留钥匙串桥接"
+            case .full: return "policy_full_detail".localized
+            case .minimal: return "policy_minimal_detail".localized
+            case .none: return "policy_none_detail".localized
             }
         }
     }

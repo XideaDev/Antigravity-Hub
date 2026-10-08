@@ -19,6 +19,8 @@ extension Notification.Name {
 /// from the menu bar icon.
 struct SettingsPane: View {
     @EnvironmentObject private var store: ProfileStore
+    @ObservedObject private var loc = LocalizationManager.shared
+    @ObservedObject private var updater = UpdaterManager.shared
     let onOpenAbout: () -> Void
 
     @AppStorage(PrefKey.maskAccounts) private var maskAccounts: Bool = false
@@ -44,10 +46,10 @@ struct SettingsPane: View {
 
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionTitle("通用")
+            sectionTitle("general".localized)
 
             card {
-                Toggle("开机自启", isOn: $launchAtLogin)
+                Toggle("launch_at_login".localized, isOn: $launchAtLogin)
                     .toggleStyle(.switch)
                     .controlSize(.small)
                     .font(.system(size: 13))
@@ -61,15 +63,54 @@ struct SettingsPane: View {
             )
 
             card {
-                Toggle("账号脱敏保护", isOn: $maskAccounts)
+                Toggle("account_masking".localized, isOn: $maskAccounts)
                     .toggleStyle(.switch)
                     .controlSize(.small)
                     .font(.system(size: 13))
             }
-            hint("在主面板与总览页面隐藏账号敏感部分，防止截屏或录屏泄露")
+            hint("account_masking_hint".localized)
 
             card {
-                Text("刷新频率").font(.system(size: 13))
+                Text("language".localized).font(.system(size: 13))
+                Spacer(minLength: 6)
+                Picker("", selection: $loc.currentLanguage) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.label).tag(lang.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.small)
+                .frame(width: 116)
+            }
+            hint("")
+
+            card {
+                Toggle("auto_check_updates".localized, isOn: Binding(
+                    get: { updater.automaticallyChecksForUpdates },
+                    set: { updater.automaticallyChecksForUpdates = $0 }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .font(.system(size: 13))
+            }
+            hint("auto_check_updates_hint".localized)
+
+            card {
+                Text("check_for_updates".localized).font(.system(size: 13))
+                Spacer(minLength: 6)
+                Button(action: { updater.checkForUpdates() }) {
+                    Text("check_updates_now".localized)
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!updater.canCheckForUpdates)
+            }
+            hint("")
+
+            card {
+                Text("refresh_interval".localized).font(.system(size: 13))
                 Spacer(minLength: 6)
                 Picker("", selection: $cadence) {
                     ForEach(RefreshCadence.allCases) { option in
@@ -94,10 +135,7 @@ struct SettingsPane: View {
         do {
             try LaunchAtLogin.set(enabled)
         } catch {
-            // Registration is refused outright when the bundle isn't in an
-            // Applications folder or isn't signed — surface it instead of
-            // leaving the toggle lying about the real state.
-            loginError = "设置失败：\(error.localizedDescription)"
+            loginError = "set_failed".localized(with: error.localizedDescription)
             launchAtLogin = LaunchAtLogin.isEnabled
         }
     }
@@ -106,7 +144,7 @@ struct SettingsPane: View {
 
     private var iconSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionTitle("菜单栏图标")
+            sectionTitle("menubar_icon".localized)
 
             LazyVGrid(columns: iconColumns, spacing: 6) {
                 ForEach(MenuBarGlyph.catalog) { glyph in
@@ -115,7 +153,7 @@ struct SettingsPane: View {
             }
             .padding(.horizontal, 10)
 
-            hint("实心 = 有分身运行中")
+            hint("menubar_icon_hint".localized)
         }
     }
 
@@ -157,9 +195,9 @@ struct SettingsPane: View {
     /// a second stacked row pushed the page past the panel's fixed height.
     private var utilityRow: some View {
         HStack(spacing: 6) {
-            SoftButton(title: "关于 Antigravity Hub", systemImage: "info.circle", action: onOpenAbout)
+            SoftButton(title: "about_app".localized, systemImage: "info.circle", action: onOpenAbout)
             Spacer(minLength: 4)
-            SoftButton(title: "恢复默认", systemImage: "arrow.counterclockwise") { restoreDefaults() }
+            SoftButton(title: "restore_defaults".localized, systemImage: "arrow.counterclockwise") { restoreDefaults() }
         }
         .padding(.horizontal, 10)
         .padding(.top, 14)
@@ -196,19 +234,27 @@ struct SettingsPane: View {
     }
 
     private func hint(_ text: String, tint: Color = Color.secondary.opacity(0.55)) -> some View {
-        Text(text)
-            .font(.system(size: 11))
-            .foregroundStyle(tint)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 12)
-            .padding(.top, 5)
-            .padding(.bottom, 8)
+        Group {
+            if text.trimmingCharacters(in: .whitespaces).isEmpty {
+                Spacer(minLength: 6)
+            } else {
+                Text(text)
+                    .font(.system(size: 11))
+                    .foregroundStyle(tint)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 4)
+                    .padding(.bottom, 6)
+            }
+        }
     }
 }
 
 // MARK: - 关于页（面板内）
 
 struct AboutPane: View {
+    @ObservedObject private var loc = LocalizationManager.shared
+
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
@@ -219,30 +265,30 @@ struct AboutPane: View {
 
     private var signingInfo: (title: String, isDeveloperID: Bool, isSigned: Bool) {
         guard let url = Bundle.main.executableURL as CFURL? else {
-            return ("未知状态", false, false)
+            return ("signing_unknown".localized, false, false)
         }
         var staticCode: SecStaticCode?
         guard SecStaticCodeCreateWithPath(url, [], &staticCode) == errSecSuccess,
               let staticCode else {
-            return ("未签名（开发副本）", false, false)
+            return ("signing_unsigned".localized, false, false)
         }
         var info: CFDictionary?
         guard SecCodeCopySigningInformation(staticCode, [], &info) == errSecSuccess,
               let info else {
-            return ("未签名（开发副本）", false, false)
+            return ("signing_unsigned".localized, false, false)
         }
         let dict = info as NSDictionary
         if let team = dict[kSecCodeInfoTeamIdentifier as String] as? String, !team.isEmpty {
-            return ("Developer ID 公证 · 团队 \(team)", true, true)
+            return ("signing_dev_id".localized(with: team), true, true)
         }
         if let authority = dict["authority"] as? String, !authority.isEmpty {
             let isDevID = authority.contains("Developer ID")
             return (authority, isDevID, true)
         }
         if dict[kSecCodeInfoIdentifier as String] != nil {
-            return ("Ad-hoc 本地开发签名", false, true)
+            return ("signing_adhoc".localized, false, true)
         }
-        return ("未签名（开发副本）", false, false)
+        return ("signing_unsigned".localized, false, false)
     }
 
     private var archName: String {
@@ -288,10 +334,10 @@ struct AboutPane: View {
                         .background(Capsule().fill(Color.accentColor.opacity(0.12)))
                         .foregroundStyle(Color.accentColor)
                 }
-                Text("构建 \(buildNumber) · macOS 14+")
+                Text("build_label".localized(with: buildNumber))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                Text("Google Antigravity 原生多分身管理器")
+                Text("app_role_desc".localized)
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }
@@ -338,16 +384,16 @@ struct AboutPane: View {
 
     private var infoRows: some View {
         VStack(alignment: .leading, spacing: 7) {
-            infoRowWithAction("Antigravity 路径", ProfileEngine.antigravityAppURL?.path ?? "未找到") {
+            infoRowWithAction("antigravity_path".localized, ProfileEngine.antigravityAppURL?.path ?? "not_found".localized) {
                 if let url = ProfileEngine.antigravityAppURL {
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }
             }
-            infoRowWithAction("分身数据目录", ProfileEngine.root.path) {
+            infoRowWithAction("profiles_data_dir".localized, ProfileEngine.root.path) {
                 NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: ProfileEngine.root.path)
             }
             signingRow
-            infoRow("系统架构", "\(archName) · \(ProcessInfo.processInfo.operatingSystemVersionString)")
+            infoRow("system_arch".localized, "\(archName) · \(ProcessInfo.processInfo.operatingSystemVersionString)")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -355,7 +401,7 @@ struct AboutPane: View {
 
     private var signingRow: some View {
         HStack(alignment: .top, spacing: 8) {
-            Text("签名状态")
+            Text("signing_status".localized)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .frame(width: 86, alignment: .leading)
@@ -375,13 +421,13 @@ struct AboutPane: View {
 
     private var highlights: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("核心机制")
+            Text("core_mechanisms".localized)
                 .font(.system(size: 12, weight: .medium))
                 .padding(.top, 10)
 
-            highlightItem(icon: "shield.lefthalf.filled", title: "物理沙箱隔离", desc: "基于 Chromium 官方 --user-data-dir 与独立 HOME，每个分身数据与配置物理隔离。")
-            highlightItem(icon: "person.badge.key.fill", title: "多账号互不干扰", desc: "各实例独立持有独立的 Google 账号与 Gemini 配额，告别反复登出与切换。")
-            highlightItem(icon: "bolt.badge.checkmark.fill", title: "零补丁 · 零依赖", desc: "不修改 Antigravity 二进制与数据库，纯 Swift 原生构建，无外部依赖。")
+            highlightItem(icon: "shield.lefthalf.filled", title: "sandbox_isolation_title".localized, desc: "sandbox_isolation_desc".localized)
+            highlightItem(icon: "person.badge.key.fill", title: "multi_account_title".localized, desc: "multi_account_desc".localized)
+            highlightItem(icon: "bolt.badge.checkmark.fill", title: "zero_patch_title".localized, desc: "zero_patch_desc".localized)
         }
         .padding(.horizontal, 12)
         .padding(.bottom, 10)
@@ -408,17 +454,17 @@ struct AboutPane: View {
 
     private var licenses: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("开源许可与商标声明")
+            Text("license_and_trademark".localized)
                 .font(.system(size: 12, weight: .medium))
                 .padding(.top, 10)
 
             license(
                 "Antigravity Hub — MIT License",
-                "本项目的全部代码为独立实现，未包含任何第三方管理工具的源代码。"
+                "license_desc".localized
             )
             license(
-                "商标声明",
-                "Google、Antigravity、Gemini 为 Google LLC 商标。本项目为非官方独立工具，与 Google LLC 无隶属关系。"
+                "trademark_notice".localized,
+                "trademark_desc".localized
             )
         }
         .padding(.horizontal, 12)
@@ -427,10 +473,10 @@ struct AboutPane: View {
 
     private var links: some View {
         HStack(spacing: 6) {
-            SoftButton(title: "更新日志", systemImage: "list.bullet.rectangle") {
+            SoftButton(title: "changelog".localized, systemImage: "list.bullet.rectangle") {
                 NSWorkspace.shared.open(URL(string: "https://github.com/XideaDev/Antigravity-Hub/releases")!)
             }
-            SoftButton(title: "GitHub 仓库", systemImage: "arrow.up.right") {
+            SoftButton(title: "github_repo".localized, systemImage: "arrow.up.right") {
                 NSWorkspace.shared.open(URL(string: "https://github.com/XideaDev/Antigravity-Hub")!)
             }
             Spacer(minLength: 0)
@@ -472,7 +518,7 @@ struct AboutPane: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("在 Finder 中显示")
+            .help("reveal_in_finder".localized)
         }
     }
 

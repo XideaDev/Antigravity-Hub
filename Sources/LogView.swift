@@ -3,6 +3,7 @@ import SwiftUI
 
 struct LogView: View {
     let profileName: String
+    @ObservedObject private var loc = LocalizationManager.shared
 
     @State private var text = ""
     @State private var error: String?
@@ -32,7 +33,7 @@ struct LogView: View {
 
     private var toolbar: some View {
         HStack(spacing: 6) {
-            Text("最近 \(Self.tailLines) 行")
+            Text("recent_lines".localized(with: Self.tailLines))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
 
@@ -51,17 +52,17 @@ struct LogView: View {
 
             HeaderIconButton(
                 systemImage: isLive ? "pause.fill" : "play.fill",
-                help: isLive ? "暂停跟随" : "恢复跟随"
+                help: isLive ? "pause_follow".localized : "resume_follow".localized
             ) {
                 isLive.toggle()
                 if isLive { Task { await load() } }
             }
 
-            HeaderIconButton(systemImage: "arrow.clockwise", help: "刷新") {
+            HeaderIconButton(systemImage: "arrow.clockwise", help: "refresh".localized) {
                 Task { await load() }
             }
 
-            HeaderIconButton(systemImage: "doc.on.doc", help: "复制全部") {
+            HeaderIconButton(systemImage: "doc.on.doc", help: "copy_all".localized) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
             }
@@ -79,15 +80,15 @@ struct LogView: View {
             messageState(
                 icon: "exclamationmark.triangle.fill",
                 tint: .orange,
-                title: "读取日志失败",
+                title: "read_log_failed".localized,
                 detail: error
             )
         } else if hasNoLogs {
             messageState(
                 icon: "doc.text",
                 tint: .secondary,
-                title: "还没有日志",
-                detail: "日志在每次「启动」时写入。\n先启动这个分身，再回来查看。"
+                title: "no_logs_yet".localized,
+                detail: "no_logs_desc".localized
             )
         } else {
             logText

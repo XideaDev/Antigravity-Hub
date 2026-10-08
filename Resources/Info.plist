@@ -28,5 +28,13 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Antigravity Hub — MIT License. Independent implementation; not affiliated with Google LLC.</string>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/XideaDev/Antigravity-Hub/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>ikzrpRRDs7brMMzuDBOZ63moJiLfRZB9S1l5da9tcwk=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

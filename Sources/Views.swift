@@ -157,6 +157,7 @@ struct HeaderIconButton: View {
 struct ConsolePanel: View {
     @EnvironmentObject private var store: ProfileStore
     @ObservedObject private var router = PanelRouter.shared
+    @ObservedObject private var loc = LocalizationManager.shared
 
     /// Accordion: at most one profile shows its detail drawer, which keeps the
     /// panel from growing taller than the screen when several are expanded.
@@ -214,11 +215,11 @@ struct ConsolePanel: View {
     private var header: some View {
         switch router.route {
         case .list: listHeader
-        case .create: subHeader(title: "新建分身")
-        case let .edit(name): subHeader(title: "编辑 · \(name)")
-        case let .logs(name): subHeader(title: "日志 · \(name)")
-        case .settings: subHeader(title: "设置")
-        case .about: subHeader(title: "关于 Antigravity Hub")
+        case .create: subHeader(title: "new_profile".localized)
+        case let .edit(name): subHeader(title: "edit_title".localized(with: name))
+        case let .logs(name): subHeader(title: "logs_title".localized(with: name))
+        case .settings: subHeader(title: "settings".localized)
+        case .about: subHeader(title: "about_app".localized)
         }
     }
 
@@ -246,7 +247,7 @@ struct ConsolePanel: View {
                 .padding(.leading, 2)
 
             if !store.profiles.isEmpty {
-                Text("\(store.runningCount)/\(store.totalCount) 运行")
+                Text("running_count".localized(with: store.runningCount, store.totalCount))
                     .font(.system(size: 12))
                     .foregroundStyle(.tertiary)
                     .padding(.leading, 5)
@@ -261,13 +262,13 @@ struct ConsolePanel: View {
                     .frame(width: 14)
             }
 
-            HeaderIconButton(systemImage: "plus", help: "新建分身 (⌘N)") { router.route = .create }
+            HeaderIconButton(systemImage: "plus", help: "\("new_profile".localized) (⌘N)") { router.route = .create }
                 .keyboardShortcut("n", modifiers: .command)
 
-            HeaderIconButton(systemImage: "arrow.clockwise", help: "刷新 (⌘R)") { store.refresh() }
+            HeaderIconButton(systemImage: "arrow.clockwise", help: "\("refresh".localized) (⌘R)") { store.refresh() }
                 .keyboardShortcut("r", modifiers: .command)
 
-            HeaderIconButton(systemImage: "gearshape", help: "设置 (⌘,)") { router.route = .settings }
+            HeaderIconButton(systemImage: "gearshape", help: "\("settings".localized) (⌘,)") { router.route = .settings }
                 .keyboardShortcut(",", modifiers: .command)
         }
         // Roomy vertically on purpose: the 28pt icon buttons plus the panel's
@@ -279,7 +280,7 @@ struct ConsolePanel: View {
 
     private func subHeader(title: String) -> some View {
         HStack(spacing: 6) {
-            HeaderIconButton(systemImage: "chevron.left", help: "返回") { goBack() }
+            HeaderIconButton(systemImage: "chevron.left", help: "back".localized) { goBack() }
 
             Text(title)
                 .font(.system(size: 14, weight: .semibold))
@@ -326,7 +327,7 @@ struct ConsolePanel: View {
                 if saved { router.route = .list }
             }
         } else {
-            Text("分身不存在")
+            Text("profile_not_found".localized)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -348,11 +349,11 @@ struct ConsolePanel: View {
         ScrollView {
             VStack(spacing: 0) {
                 if !running.isEmpty {
-                    groupHeader("运行中 · \(running.count)")
+                    groupHeader("running_group".localized(with: running.count))
                     ForEach(running) { row(for: $0) }
                 }
                 if !stopped.isEmpty {
-                    groupHeader("已停止 · \(stopped.count)")
+                    groupHeader("stopped_group".localized(with: stopped.count))
                     ForEach(stopped) { row(for: $0) }
                 }
             }
@@ -412,13 +413,13 @@ struct ConsolePanel: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 24))
                 .foregroundStyle(.orange)
-            Text("找不到 Google Antigravity")
+            Text("antigravity_missing_title".localized)
                 .font(.system(size: 13, weight: .medium))
-            Text("Antigravity Hub 是 Antigravity 的多分身管理器，\n需要先安装本体。")
+            Text("antigravity_missing_desc".localized)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            SoftButton(title: "打开下载页", systemImage: "arrow.up.right") {
+            SoftButton(title: "open_download_page".localized, systemImage: "arrow.up.right") {
                 NSWorkspace.shared.open(URL(string: "https://antigravity.google")!)
             }
             .padding(.top, 2)
@@ -433,9 +434,9 @@ struct ConsolePanel: View {
             Image(systemName: "tray")
                 .font(.system(size: 24))
                 .foregroundStyle(.tertiary)
-            Text("还没有分身")
+            Text("no_profiles_yet".localized)
                 .font(.system(size: 13, weight: .medium))
-            SoftButton(title: "新建第一个分身", systemImage: "plus", prominent: true) {
+            SoftButton(title: "create_first_profile".localized, systemImage: "plus", prominent: true) {
                 router.route = .create
             }
         }
@@ -465,12 +466,12 @@ struct ConsolePanel: View {
 
     private var footer: some View {
         HStack(spacing: 6) {
-            SoftButton(title: "总览", systemImage: "square.grid.2x2") { openOverview() }
+            SoftButton(title: "overview".localized, systemImage: "square.grid.2x2") { openOverview() }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
             Spacer(minLength: 4)
-            SoftButton(title: "平铺窗口", systemImage: "rectangle.split.2x1") { store.tileWindows() }
+            SoftButton(title: "tile_windows".localized, systemImage: "rectangle.split.2x1") { store.tileWindows() }
                 .disabled(store.isTiling)
-            SoftButton(title: "退出", systemImage: "power") { NSApplication.shared.terminate(nil) }
+            SoftButton(title: "quit".localized, systemImage: "power") { NSApplication.shared.terminate(nil) }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -510,6 +511,7 @@ struct ConsolePanel: View {
 
 struct ProfileRow: View {
     @EnvironmentObject private var store: ProfileStore
+    @ObservedObject private var loc = LocalizationManager.shared
     let profile: ProfileSnapshot
     /// Fetched lazily on expand — carries the on-disk size the poll loop can't.
     let detail: ProfileSnapshot?
@@ -585,7 +587,7 @@ struct ProfileRow: View {
 
     private var primaryButton: some View {
         SoftButton(
-            title: profile.isRunning ? "停止" : "启动",
+            title: profile.isRunning ? "stop".localized : "launch".localized,
             systemImage: profile.isRunning ? "stop.fill" : "play.fill",
             prominent: !profile.isRunning
         ) {
@@ -605,12 +607,12 @@ struct ProfileRow: View {
         VStack(alignment: .leading, spacing: 9) {
             if confirmingDelete {
                 HStack(spacing: 8) {
-                    Text("永久删除？")
+                    Text("confirm_delete".localized)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.red)
                     Spacer(minLength: 4)
-                    SoftButton(title: "取消") { confirmingDelete = false }
-                    SoftButton(title: "删除", tint: .red, prominent: true) {
+                    SoftButton(title: "cancel".localized) { confirmingDelete = false }
+                    SoftButton(title: "delete".localized, tint: .red, prominent: true) {
                         confirmingDelete = false
                         store.delete(profile)
                     }
@@ -623,25 +625,25 @@ struct ProfileRow: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 5) {
-                    IconChip(systemImage: "doc.text", help: "查看日志", action: onShowLogs)
-                    IconChip(systemImage: "folder", help: "在 Finder 中显示沙箱") {
+                    IconChip(systemImage: "doc.text", help: "view_logs".localized, action: onShowLogs)
+                    IconChip(systemImage: "folder", help: "reveal_in_finder".localized) {
                         NSWorkspace.shared.selectFile(
                             nil,
                             inFileViewerRootedAtPath: profile.directory.path
                         )
                     }
                     if profile.hasAccount {
-                        IconChip(systemImage: "doc.on.doc", help: "复制账号：\(profile.displayAccount)") {
+                        IconChip(systemImage: "doc.on.doc", help: "copy_account_format".localized(with: profile.displayAccount)) {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(profile.displayAccount, forType: .string)
-                            store.showNotice("已复制账号")
+                            store.showNotice("account_copied".localized)
                         }
                     }
-                    IconChip(systemImage: "pencil", help: "编辑分身", action: onEdit)
+                    IconChip(systemImage: "pencil", help: "edit_profile".localized, action: onEdit)
 
                     Spacer(minLength: 4)
 
-                    IconChip(systemImage: "trash", help: "删除分身", tint: .red) {
+                    IconChip(systemImage: "trash", help: "delete_profile".localized, tint: .red) {
                         confirmingDelete = true
                     }
                 }
@@ -660,10 +662,10 @@ struct ProfileRow: View {
         // `size` stays null until the detail fetch lands, and the "—" placeholder
         // read as a rendering glitch when it led the line — omit it entirely.
         if let size = source.size, !size.isEmpty { parts.append(size) }
-        if source.inheritedFrom != nil { parts.append("继承宿主配置") }
-        if source.isExpired { parts.append("Token 已过期") }
-        else if source.isExpiring { parts.append("Token 即将过期") }
+        if source.inheritedFrom != nil { parts.append("inherited_host_config".localized) }
+        if source.isExpired { parts.append("token_expired".localized) }
+        else if source.isExpiring { parts.append("token_expiring_soon".localized) }
         if let note = source.note, !note.isEmpty { parts.append(note) }
-        return parts.isEmpty ? "读取详情中…" : parts.joined(separator: " · ")
+        return parts.isEmpty ? "reading_details".localized : parts.joined(separator: " · ")
     }
 }

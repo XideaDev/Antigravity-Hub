@@ -1,0 +1,194 @@
+/* 
+  Localizable.strings (English)
+  Antigravity Hub
+*/
+
+// MARK: - App & Common
+"app_name" = "Antigravity Hub";
+"app_subtitle" = "Multi-Account Isolation · Sandboxed Environments · One-Click Multi-Instance";
+"app_role_desc" = "Native Multi-Instance Profile Manager for Google Antigravity";
+"build_label" = "Build %@ · macOS 14+";
+"overview" = "Overview";
+"overview_window" = "Open Overview Window";
+"settings" = "Settings";
+"about" = "About";
+"about_app" = "About Antigravity Hub";
+"logs" = "Logs";
+"quit" = "Quit";
+"quit_app" = "Quit Antigravity Hub";
+"cancel" = "Cancel";
+"save" = "Save";
+"saving" = "Saving…";
+"create" = "Create";
+"delete" = "Delete";
+"back" = "Back";
+"refresh" = "Refresh";
+"tile_windows" = "Tile Windows";
+"tile" = "Tile";
+"search_placeholder" = "Search profiles, accounts, or notes...";
+"all" = "All";
+"running" = "Running";
+"stopped" = "Stopped";
+"running_count" = "%d/%d Running";
+"running_group" = "Running · %d";
+"stopped_group" = "Stopped · %d";
+"launch_all" = "Launch All";
+"stop_all" = "Stop All";
+"reveal_in_finder" = "Reveal Sandbox in Finder";
+"reveal_profiles_dir" = "Reveal Profiles Directory in Finder";
+"restore_defaults" = "Restore Defaults";
+
+// MARK: - Updates (Sparkle)
+"check_for_updates" = "Check for Updates…";
+"check_updates_now" = "Check Now";
+"checking_for_updates" = "Checking for updates…";
+"auto_check_updates" = "Automatically Check for Updates";
+"auto_check_updates_hint" = "Automatically check for new releases on GitHub Releases in the background";
+
+// MARK: - Profiles
+"new_profile" = "New Profile";
+"edit_profile" = "Edit Profile";
+"edit_title" = "Edit · %@";
+"logs_title" = "Logs · %@";
+"delete_profile" = "Delete Profile";
+"confirm_delete" = "Delete permanently?";
+"confirm_delete_title" = "Delete profile \"%@\"?";
+"confirm_delete_msg" = "The login session, chat history, and local data of this profile will be permanently deleted and cannot be recovered.";
+"launch" = "Launch";
+"stop" = "Stop";
+"no_account_bound" = "No Google account linked";
+"inherited_host_config" = "Inherited Host Config";
+"from_source" = "From %@";
+"token_expired" = "Token expired";
+"token_expiring_soon" = "Token expiring soon";
+"reading_details" = "Loading details…";
+"no_profiles_yet" = "No profiles yet";
+"no_matching_profiles" = "No matching profiles";
+"create_first_profile" = "Create your first profile";
+"profile_not_found" = "Profile does not exist";
+"profile_gone" = "This profile no longer exists";
+"independent_sandbox" = "Isolated Chromium Sandbox";
+"antigravity_missing_title" = "Google Antigravity not found";
+"antigravity_missing_desc" = "Antigravity Hub manages multiple instances of Antigravity.\nPlease install it first.";
+"open_download_page" = "Open Download Page";
+"copy_account" = "Copy Account";
+"copy_account_format" = "Copy Account: %@";
+"copy_full_account" = "Click to copy full account";
+"account_copied" = "Account copied to clipboard";
+"copied" = "Copied";
+"open_in_finder" = "Open this profile sandbox in Finder";
+"edit_tooltip" = "Edit name, description, and link policy";
+"close_detail" = "Close details (ESC)";
+"close_panel_esc" = "Close panel (ESC)";
+"close" = "Close";
+
+// MARK: - Fields & Labels
+"name" = "Name";
+"description" = "Description";
+"symlink_policy" = "Symlink Policy";
+"inherit_config" = "Inherit Host Configuration";
+"inherit_config_hint" = "Copies editor preferences, keybindings, and snippets, and symlinks Agent Skills & MCP tools. OAuth tokens and accounts are never copied.";
+"agent_skills_linked_hint" = "Agent Skills are symlinked to keep edits synchronized";
+"launch_after_create" = "Launch immediately after creation";
+"policy_full" = "Full";
+"policy_minimal" = "Minimal";
+"policy_none" = "None";
+"policy_full_detail" = "Links real ~/.ssh, ~/.config, Desktop, Documents, Downloads, etc.";
+"policy_minimal_detail" = "Only links git/shell config and common project dirs; skips .ssh/.config";
+"policy_none_detail" = "Links almost nothing; preserves only keychain bridging";
+"full_policy_warning" = "Exposes real ~/.ssh and ~/.config to agents inside this sandbox";
+"name_placeholder" = "e.g. work";
+"desc_placeholder" = "e.g. Work Account";
+"rename_running_warning" = "Renaming moves the sandbox directory. Please stop this profile first.";
+"rename_path_notice" = "Moves the sandbox directory. Login session is preserved, but chat history may retain the old path text.";
+"policy_tighten_notice" = "When tightened, existing symlinks to ~/.ssh and ~/.config in the sandbox will be removed (real directories unaffected).";
+
+// MARK: - Settings
+"general" = "General";
+"launch_at_login" = "Launch at Login";
+"account_masking" = "Account Privacy Masking";
+"account_masking_hint" = "Hides sensitive parts of email accounts across panel and overview to prevent screenshot leakage";
+"refresh_interval" = "Refresh Interval";
+"menubar_icon" = "Menu Bar Icon";
+"menubar_icon_hint" = "Solid = instances are running";
+"language" = "App Language";
+"language_system" = "System Default";
+"language_zh" = "简体中文";
+"language_en" = "English";
+"login_item_enabled" = "Enabled, starts automatically at login";
+"login_item_pending" = "Pending approval in System Settings › General › Login Items";
+"login_item_disabled" = "Not enabled";
+"set_failed" = "Setup failed: %@";
+
+// Cadence
+"cadence_3s" = "3 seconds";
+"cadence_5s" = "5 seconds";
+"cadence_10s" = "10 seconds";
+"cadence_30s" = "30 seconds";
+"cadence_on_open" = "On panel open only";
+"cadence_detail_normal" = "Spawns a brief background process on each tick (~150ms)";
+"cadence_detail_on_open" = "Menu bar icon does not auto-update; only refreshes when panel opens";
+
+// Glyphs
+"glyph_squares" = "Squares";
+"glyph_stack" = "Stack";
+"glyph_cube" = "Cube";
+"glyph_grid" = "Grid";
+"glyph_rects" = "Rects";
+"glyph_bolt" = "Bolt";
+"glyph_hex" = "Hexagon";
+"glyph_window" = "Window";
+"glyph_atom" = "Atom";
+"glyph_sparkles" = "Sparkles";
+
+// MARK: - Logs
+"recent_lines" = "Recent %d lines";
+"pause_follow" = "Pause Follow";
+"resume_follow" = "Resume Follow";
+"copy_all" = "Copy All";
+"log_refresh_hint" = "Refreshes every 2s";
+"no_logs_yet" = "No logs yet";
+"no_logs_desc" = "Logs are written on each launch.\nLaunch this profile first and check back.";
+"read_log_failed" = "Failed to read logs";
+
+// MARK: - About & Metadata
+"core_mechanisms" = "Core Mechanisms";
+"sandbox_isolation_title" = "Physical Sandbox Isolation";
+"sandbox_isolation_desc" = "Based on Chromium's official --user-data-dir and isolated HOME, each profile is physically isolated.";
+"multi_account_title" = "Multi-Account Isolation";
+"multi_account_desc" = "Each instance independently holds its Google account and Gemini quota, ending repeated logouts and switching.";
+"zero_patch_title" = "Zero Patches · Zero Dependencies";
+"zero_patch_desc" = "Leaves Antigravity binaries and databases untouched. Pure Swift native build with zero external dependencies.";
+"license_and_trademark" = "Open Source License & Trademarks";
+"license_desc" = "All code in this project is an independent implementation and contains no third-party source code.";
+"trademark_notice" = "Trademark Notice";
+"trademark_desc" = "Google, Antigravity, and Gemini are trademarks of Google LLC. This is an unofficial, independent tool not affiliated with Google LLC.";
+"changelog" = "Changelog";
+"github_repo" = "GitHub Repository";
+"system_arch" = "System Architecture";
+"signing_status" = "Code Signature";
+"antigravity_path" = "Antigravity Path";
+"profiles_data_dir" = "Profiles Directory";
+"not_found" = "Not found";
+
+// Signing Status Titles
+"signing_dev_id" = "Developer ID Notarized · Team %@";
+"signing_adhoc" = "Ad-hoc Local Signature";
+"signing_unsigned" = "Unsigned (Development Copy)";
+"signing_unknown" = "Unknown Status";
+
+// Metadata Fields
+"field_directory" = "Sandbox Path";
+"field_account" = "Google Account";
+"field_description" = "Description";
+"field_policy" = "Symlink Policy";
+"field_inheritance" = "Configuration";
+"field_size" = "Disk Usage";
+"field_status" = "Status";
+"field_created" = "Created At";
+"field_account_label" = "Account";
+"field_status_label" = "Status";
+"field_size_label" = "Size";
+"field_dir_label" = "Directory";
+"field_desc_label" = "Description";
+"field_source_label" = "Source";

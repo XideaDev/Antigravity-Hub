@@ -459,25 +459,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Batch actions used to live behind the header's ⋯ menu. Now that the
         // status item has a real context menu, they belong here — they're
         // app-level actions, not panel-level ones.
-        let launchAll = item("全部启动", #selector(launchAll))
+        let launchAll = item("launch_all".localized, #selector(launchAll))
         launchAll.isEnabled = !store.isBatching && store.runningCount < store.totalCount
         menu.addItem(launchAll)
 
-        let stopAll = item("全部停止", #selector(stopAll))
+        let stopAll = item("stop_all".localized, #selector(stopAll))
         stopAll.isEnabled = !store.isBatching && store.runningCount > 0
         menu.addItem(stopAll)
 
         menu.addItem(.separator())
-        menu.addItem(item("打开总览窗口", #selector(openOverview), key: "o", modifiers: [.command, .shift]))
-        menu.addItem(item("在 Finder 中打开分身目录", #selector(revealProfiles)))
+        menu.addItem(item("check_for_updates".localized, #selector(checkForUpdates), key: "u"))
+        menu.addItem(item("overview_window".localized, #selector(openOverview), key: "o", modifiers: [.command, .shift]))
+        menu.addItem(item("reveal_profiles_dir".localized, #selector(revealProfiles)))
 
         menu.addItem(.separator())
-        menu.addItem(item("设置…", #selector(openSettings), key: ","))
-        menu.addItem(item("关于 Antigravity Hub", #selector(openAbout)))
+        menu.addItem(item("settings".localized + "…", #selector(openSettings), key: ","))
+        menu.addItem(item("about_app".localized, #selector(openAbout)))
 
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
-            title: "退出 Antigravity Hub",
+            title: "quit_app".localized,
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         ))
@@ -514,6 +515,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openAbout() {
         PanelRouter.shared.route = .about
         showPanel()
+    }
+
+    @objc private func checkForUpdates() {
+        UpdaterManager.shared.checkForUpdates()
     }
 
     // MARK: - Menu actions

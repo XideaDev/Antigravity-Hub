@@ -8,6 +8,7 @@ import SwiftUI
 /// a property of this profile.
 struct EditProfileView: View {
     @EnvironmentObject private var store: ProfileStore
+    @ObservedObject private var loc = LocalizationManager.shared
     let profile: ProfileSnapshot
     let onFinish: (Bool) -> Void
 
@@ -80,8 +81,8 @@ struct EditProfileView: View {
 
     private var nameField: some View {
         VStack(alignment: .leading, spacing: 5) {
-            fieldLabel("名字", required: true)
-            TextField("例如 work", text: $name)
+            fieldLabel("name".localized, required: true)
+            TextField("name_placeholder".localized, text: $name)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 13))
                 .disabled(isSaving)
@@ -89,7 +90,7 @@ struct EditProfileView: View {
 
             if blockedByRunning {
                 Label(
-                    "改名会移动沙箱目录，请先停止这个分身。",
+                    "rename_running_warning".localized,
                     systemImage: "exclamationmark.triangle.fill"
                 )
                 .font(.system(size: 11))
@@ -102,8 +103,7 @@ struct EditProfileView: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else if isRenaming {
                 Label(
-                    "会移动沙箱目录。登录状态会保留（凭据不依赖路径），"
-                    + "但历史对话记录里会残留旧路径文字。",
+                    "rename_path_notice".localized,
                     systemImage: "info.circle"
                 )
                 .font(.system(size: 11))
@@ -115,8 +115,8 @@ struct EditProfileView: View {
 
     private var noteField: some View {
         VStack(alignment: .leading, spacing: 5) {
-            fieldLabel("描述", required: false)
-            TextField("例如 公司业务账号", text: $note)
+            fieldLabel("description".localized, required: false)
+            TextField("desc_placeholder".localized, text: $note)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 13))
                 .disabled(isSaving)
@@ -125,7 +125,7 @@ struct EditProfileView: View {
 
     private var policySection: some View {
         VStack(alignment: .leading, spacing: 5) {
-            fieldLabel("链接策略", required: false)
+            fieldLabel("symlink_policy".localized, required: false)
             Picker("", selection: $policy) {
                 ForEach(ProfileEngine.SymlinkPolicy.allCases) { option in
                     Text(option.label).tag(option)
@@ -142,7 +142,7 @@ struct EditProfileView: View {
 
             if policy == .full {
                 Label(
-                    "会把真实的 ~/.ssh 与 ~/.config 暴露给分身内的 Agent",
+                    "full_policy_warning".localized,
                     systemImage: "exclamationmark.shield.fill"
                 )
                 .font(.system(size: 11))
@@ -150,7 +150,7 @@ struct EditProfileView: View {
                 .fixedSize(horizontal: false, vertical: true)
             } else if originalPolicy == .full {
                 Label(
-                    "收紧后，沙箱里已有的 ~/.ssh 与 ~/.config 软链会被移除（真实目录不受影响）",
+                    "policy_tighten_notice".localized,
                     systemImage: "lock.shield"
                 )
                 .font(.system(size: 11))
@@ -179,14 +179,14 @@ struct EditProfileView: View {
         HStack(spacing: 8) {
             if isSaving {
                 ProgressView().controlSize(.small).scaleEffect(0.65)
-                Text("正在保存…")
+                Text("saving".localized)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 4)
-            SoftButton(title: "取消") { onFinish(false) }
+            SoftButton(title: "cancel".localized) { onFinish(false) }
                 .disabled(isSaving)
-            SoftButton(title: "保存", systemImage: "checkmark", prominent: true) { save() }
+            SoftButton(title: "save".localized, systemImage: "checkmark", prominent: true) { save() }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSave)
         }

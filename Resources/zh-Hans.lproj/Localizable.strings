@@ -1,0 +1,194 @@
+/* 
+  Localizable.strings (Simplified Chinese)
+  Antigravity Hub
+*/
+
+// MARK: - App & Common
+"app_name" = "Antigravity Hub";
+"app_subtitle" = "多账号环境隔离 · 独立配置沙箱 · 一键多开";
+"app_role_desc" = "Google Antigravity 原生多分身管理器";
+"build_label" = "构建 %@ · macOS 14+";
+"overview" = "总览";
+"overview_window" = "打开总览窗口";
+"settings" = "设置";
+"about" = "关于";
+"about_app" = "关于 Antigravity Hub";
+"logs" = "日志";
+"quit" = "退出";
+"quit_app" = "退出 Antigravity Hub";
+"cancel" = "取消";
+"save" = "保存";
+"saving" = "正在保存…";
+"create" = "创建";
+"delete" = "删除";
+"back" = "返回";
+"refresh" = "刷新";
+"tile_windows" = "平铺窗口";
+"tile" = "平铺";
+"search_placeholder" = "搜索分身、账号或备注...";
+"all" = "全部";
+"running" = "运行中";
+"stopped" = "已停止";
+"running_count" = "%d/%d 运行";
+"running_group" = "运行中 · %d";
+"stopped_group" = "已停止 · %d";
+"launch_all" = "全部启动";
+"stop_all" = "全部停止";
+"reveal_in_finder" = "在 Finder 中显示沙箱";
+"reveal_profiles_dir" = "在 Finder 中打开分身目录";
+"restore_defaults" = "恢复默认";
+
+// MARK: - Updates (Sparkle)
+"check_for_updates" = "检查更新…";
+"check_updates_now" = "立即检查更新";
+"checking_for_updates" = "正在检查更新…";
+"auto_check_updates" = "自动检查更新";
+"auto_check_updates_hint" = "在后台自动检测 GitHub Releases 最新版本并提醒";
+
+// MARK: - Profiles
+"new_profile" = "新建分身";
+"edit_profile" = "编辑分身";
+"edit_title" = "编辑 · %@";
+"logs_title" = "日志 · %@";
+"delete_profile" = "删除分身";
+"confirm_delete" = "永久删除？";
+"confirm_delete_title" = "确定删除分身「%@」？";
+"confirm_delete_msg" = "该分身的登录状态、聊天记录与本地数据会被一并删除，无法恢复。";
+"launch" = "启动";
+"stop" = "停止";
+"no_account_bound" = "未绑定 Google 账号";
+"inherited_host_config" = "继承宿主配置";
+"from_source" = "自 %@";
+"token_expired" = "Token 已过期";
+"token_expiring_soon" = "Token 即将过期";
+"reading_details" = "读取详情中…";
+"no_profiles_yet" = "还没有分身";
+"no_matching_profiles" = "没有匹配的分身";
+"create_first_profile" = "新建第一个分身";
+"profile_not_found" = "分身不存在";
+"profile_gone" = "该分身已不存在";
+"independent_sandbox" = "独立 Chromium 沙箱";
+"antigravity_missing_title" = "找不到 Google Antigravity";
+"antigravity_missing_desc" = "Antigravity Hub 是 Antigravity 的多分身管理器，\n需要先安装本体。";
+"open_download_page" = "打开下载页";
+"copy_account" = "复制账号";
+"copy_account_format" = "复制账号：%@";
+"copy_full_account" = "点击复制完整账号";
+"account_copied" = "已复制账号";
+"copied" = "已复制";
+"open_in_finder" = "在 Finder 中打开此分身沙箱";
+"edit_tooltip" = "编辑名字、描述与链接策略";
+"close_detail" = "收起详情 (ESC)";
+"close_panel_esc" = "关闭面板 (ESC)";
+"close" = "关闭";
+
+// MARK: - Fields & Labels
+"name" = "名字";
+"description" = "描述";
+"symlink_policy" = "链接策略";
+"inherit_config" = "继承宿主配置";
+"inherit_config_hint" = "复制编辑器偏好、快捷键与代码片段，并软链继承 Agent Skills 与 MCP 工具。OAuth Token 与账号永不复制。";
+"agent_skills_linked_hint" = "Agent Skills 会以软链方式继承，编辑保持同步";
+"launch_after_create" = "创建后立即启动";
+"policy_full" = "完全";
+"policy_minimal" = "精简";
+"policy_none" = "不链接";
+"policy_full_detail" = "链接 ~/.ssh、~/.config、Desktop、Documents、Downloads 等全部真实目录";
+"policy_minimal_detail" = "只链接 git/shell 配置和常用项目目录，跳过 .ssh/.config";
+"policy_none_detail" = "几乎不链接任何真实目录，仅保留钥匙串桥接";
+"full_policy_warning" = "会把真实的 ~/.ssh 与 ~/.config 暴露给分身内的 Agent";
+"name_placeholder" = "例如 work";
+"desc_placeholder" = "例如 公司业务账号";
+"rename_running_warning" = "改名会移动沙箱目录，请先停止这个分身。";
+"rename_path_notice" = "会移动沙箱目录。登录状态会保留（凭据不依赖路径），但历史对话记录里会残留旧路径文字。";
+"policy_tighten_notice" = "收紧后，沙箱里已有的 ~/.ssh 与 ~/.config 软链会被移除（真实目录不受影响）";
+
+// MARK: - Settings
+"general" = "通用";
+"launch_at_login" = "开机自启";
+"account_masking" = "账号脱敏保护";
+"account_masking_hint" = "在主面板与总览页面隐藏账号敏感部分，防止截屏或录屏泄露";
+"refresh_interval" = "刷新频率";
+"menubar_icon" = "菜单栏图标";
+"menubar_icon_hint" = "实心 = 有分身运行中";
+"language" = "界面语言";
+"language_system" = "跟随系统";
+"language_zh" = "简体中文";
+"language_en" = "English";
+"login_item_enabled" = "已启用，登录时自动启动";
+"login_item_pending" = "等待系统确认 —— 系统设置 › 通用 › 登录项";
+"login_item_disabled" = "未启用";
+"set_failed" = "设置失败：%@";
+
+// Cadence
+"cadence_3s" = "3 秒";
+"cadence_5s" = "5 秒";
+"cadence_10s" = "10 秒";
+"cadence_30s" = "30 秒";
+"cadence_on_open" = "仅打开面板时";
+"cadence_detail_normal" = "每次刷新会短暂启动一个 Python 进程（约 150 毫秒）";
+"cadence_detail_on_open" = "菜单栏图标不会自动更新，只在点开面板时刷新";
+
+// Glyphs
+"glyph_squares" = "双叠";
+"glyph_stack" = "堆叠";
+"glyph_cube" = "立方";
+"glyph_grid" = "网格";
+"glyph_rects" = "矩形堆";
+"glyph_bolt" = "闪电";
+"glyph_hex" = "六边";
+"glyph_window" = "窗口";
+"glyph_atom" = "原子";
+"glyph_sparkles" = "星芒";
+
+// MARK: - Logs
+"recent_lines" = "最近 %d 行";
+"pause_follow" = "暂停跟随";
+"resume_follow" = "恢复跟随";
+"copy_all" = "复制全部";
+"log_refresh_hint" = "每 2 秒刷新";
+"no_logs_yet" = "暂无日志";
+"no_logs_desc" = "日志在每次「启动」时写入。\n先启动这个分身，再回来查看。";
+"read_log_failed" = "读取日志失败";
+
+// MARK: - About & Metadata
+"core_mechanisms" = "核心机制";
+"sandbox_isolation_title" = "物理沙箱隔离";
+"sandbox_isolation_desc" = "基于 Chromium 官方 --user-data-dir 与独立 HOME，每个分身数据与配置物理隔离。";
+"multi_account_title" = "多账号互不干扰";
+"multi_account_desc" = "各实例独立持有独立的 Google 账号与 Gemini 配额，告别反复登出与切换。";
+"zero_patch_title" = "零补丁 · 零依赖";
+"zero_patch_desc" = "不修改 Antigravity 二进制与数据库，纯 Swift 原生构建，无外部依赖。";
+"license_and_trademark" = "开源许可与商标声明";
+"license_desc" = "本项目的全部代码为独立实现，未包含任何第三方管理工具的源代码。";
+"trademark_notice" = "商标声明";
+"trademark_desc" = "Google、Antigravity、Gemini 为 Google LLC 商标。本项目为非官方独立工具，与 Google LLC 无隶属关系。";
+"changelog" = "更新日志";
+"github_repo" = "GitHub 仓库";
+"system_arch" = "系统架构";
+"signing_status" = "签名状态";
+"antigravity_path" = "Antigravity 路径";
+"profiles_data_dir" = "分身数据目录";
+"not_found" = "未找到";
+
+// Signing Status Titles
+"signing_dev_id" = "Developer ID 公证 · 团队 %@";
+"signing_adhoc" = "Ad-hoc 本地开发签名";
+"signing_unsigned" = "未签名（开发副本）";
+"signing_unknown" = "未知状态";
+
+// Metadata Fields
+"field_directory" = "沙箱路径";
+"field_account" = "Google 账号";
+"field_description" = "分身描述";
+"field_policy" = "链接策略";
+"field_inheritance" = "配置继承";
+"field_size" = "磁盘占用";
+"field_status" = "运行状态";
+"field_created" = "创建时间";
+"field_account_label" = "账号";
+"field_status_label" = "状态";
+"field_size_label" = "体积";
+"field_dir_label" = "目录";
+"field_desc_label" = "描述";
+"field_source_label" = "来源";

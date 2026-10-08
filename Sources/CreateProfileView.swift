@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CreateProfileView: View {
     @EnvironmentObject private var store: ProfileStore
+    @ObservedObject private var loc = LocalizationManager.shared
     /// Called with `true` once the profile exists, so the panel can pop back.
     let onFinish: (Bool) -> Void
 
@@ -51,8 +52,8 @@ struct CreateProfileView: View {
 
     private var nameField: some View {
         VStack(alignment: .leading, spacing: 5) {
-            fieldLabel("名字", required: true)
-            TextField("例如 work", text: $name)
+            fieldLabel("name".localized, required: true)
+            TextField("name_placeholder".localized, text: $name)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 13))
                 .disabled(store.isCreating)
@@ -69,8 +70,8 @@ struct CreateProfileView: View {
 
     private var noteField: some View {
         VStack(alignment: .leading, spacing: 5) {
-            fieldLabel("描述", required: false)
-            TextField("例如 公司业务账号", text: $note)
+            fieldLabel("description".localized, required: false)
+            TextField("desc_placeholder".localized, text: $note)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 13))
                 .disabled(store.isCreating)
@@ -80,18 +81,18 @@ struct CreateProfileView: View {
     private var inheritanceSection: some View {
         VStack(alignment: .leading, spacing: 5) {
             Toggle(isOn: $inheritConfig) {
-                Text("继承宿主配置").font(.system(size: 13))
+                Text("inherit_config".localized).font(.system(size: 13))
             }
             .toggleStyle(.checkbox)
             .disabled(store.isCreating)
 
-            Text("复制编辑器偏好、快捷键与代码片段，并软链继承 Agent Skills 与 MCP 工具。OAuth Token 与账号永不复制。")
+            Text("inherit_config_hint".localized)
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
 
             if inheritConfig {
-                Label("Agent Skills 会以软链方式继承，编辑保持同步",
+                Label("agent_skills_linked_hint".localized,
                       systemImage: "link")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
@@ -102,7 +103,7 @@ struct CreateProfileView: View {
 
     private var linksSection: some View {
         VStack(alignment: .leading, spacing: 5) {
-            fieldLabel("链接策略", required: false)
+            fieldLabel("symlink_policy".localized, required: false)
             Picker("", selection: $links) {
                 ForEach(ProfileEngine.SymlinkPolicy.allCases) { policy in
                     Text(policy.label).tag(policy)
@@ -118,7 +119,7 @@ struct CreateProfileView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if links == .full {
-                Label("会把真实的 ~/.ssh 与 ~/.config 暴露给分身内的 Agent",
+                Label("full_policy_warning".localized,
                       systemImage: "exclamationmark.shield.fill")
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
@@ -147,7 +148,7 @@ struct CreateProfileView: View {
     private var actionsRow: some View {
         HStack(spacing: 8) {
             Toggle(isOn: $launchAfter) {
-                Text("创建后立即启动").font(.system(size: 12))
+                Text("launch_after_create".localized).font(.system(size: 12))
             }
             .toggleStyle(.checkbox)
             .disabled(store.isCreating)
@@ -157,9 +158,9 @@ struct CreateProfileView: View {
             if store.isCreating {
                 ProgressView().controlSize(.small).scaleEffect(0.65)
             }
-            SoftButton(title: "取消") { onFinish(false) }
+            SoftButton(title: "cancel".localized) { onFinish(false) }
                 .disabled(store.isCreating)
-            SoftButton(title: "创建", systemImage: "checkmark", prominent: true) { submit() }
+            SoftButton(title: "create".localized, systemImage: "checkmark", prominent: true) { submit() }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canSubmit)
         }

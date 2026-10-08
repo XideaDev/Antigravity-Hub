@@ -77,6 +77,7 @@ final class OverviewWindowController {
 
 struct OverviewView: View {
     @EnvironmentObject private var store: ProfileStore
+    @ObservedObject private var loc = LocalizationManager.shared
     @AppStorage(PrefKey.maskAccounts) private var maskAccounts: Bool = false
 
     @State private var query = ""
@@ -84,10 +85,11 @@ struct OverviewView: View {
     @State private var drawer: DrawerRoute?
 
     enum FilterStatus: String, CaseIterable, Identifiable {
-        case all = "全部"
-        case running = "运行中"
-        case stopped = "已停止"
+        case all = "all"
+        case running = "running"
+        case stopped = "stopped"
         var id: String { rawValue }
+        var label: String { rawValue.localized }
     }
 
     enum DrawerRoute: Equatable {
@@ -185,7 +187,7 @@ struct OverviewView: View {
                 }
                 .fixedSize()
 
-                Text("多账号环境隔离 · 独立配置沙箱 · 一键多开")
+                Text("app_subtitle".localized)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -202,7 +204,7 @@ struct OverviewView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "plus")
                         .font(.system(size: 12, weight: .bold))
-                    Text("新建分身")
+                    Text("new_profile".localized)
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .padding(.horizontal, 14)
@@ -243,7 +245,7 @@ struct OverviewView: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
-                TextField("搜索分身、账号或备注...", text: $query)
+                TextField("search_placeholder".localized, text: $query)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .lineLimit(1)
@@ -265,11 +267,11 @@ struct OverviewView: View {
 
             // Batch actions
             HStack(spacing: 6) {
-                SoftButton(title: "全部启动", systemImage: "play.fill") { store.launchAll() }
+                SoftButton(title: "launch_all".localized, systemImage: "play.fill") { store.launchAll() }
                     .disabled(store.isBatching || store.runningCount == store.totalCount)
-                SoftButton(title: "全部停止", systemImage: "stop.fill") { store.stopAll() }
+                SoftButton(title: "stop_all".localized, systemImage: "stop.fill") { store.stopAll() }
                     .disabled(store.isBatching || store.runningCount == 0)
-                SoftButton(title: "平铺", systemImage: "rectangle.split.2x1") { store.tileWindows() }
+                SoftButton(title: "tile".localized, systemImage: "rectangle.split.2x1") { store.tileWindows() }
                     .disabled(store.isTiling)
             }
             .fixedSize()
@@ -291,7 +293,7 @@ struct OverviewView: View {
                         .fill(dotColor)
                         .frame(width: 6, height: 6)
                 }
-                Text("\(filter.rawValue) (\(count))")
+                Text("\(filter.label) (\(count))")
                     .font(.system(size: 11, weight: filterStatus == filter ? .semibold : .regular))
             }
             .padding(.horizontal, 8)
@@ -364,10 +366,10 @@ struct OverviewView: View {
             Image(systemName: query.isEmpty ? "tray" : "magnifyingglass")
                 .font(.system(size: 28))
                 .foregroundStyle(.tertiary)
-            Text(query.isEmpty ? "还没有分身" : "没有匹配的分身")
+            Text(query.isEmpty ? "no_profiles_yet".localized : "no_matching_profiles".localized)
                 .font(.system(size: 13, weight: .medium))
             if query.isEmpty {
-                SoftButton(title: "新建第一个分身", systemImage: "plus", prominent: true) {
+                SoftButton(title: "create_first_profile".localized, systemImage: "plus", prominent: true) {
                     withAnimation(.easeOut(duration: 0.16)) {
                         drawer = .create
                     }
@@ -401,7 +403,7 @@ struct OverviewView: View {
 
         case .create:
             VStack(spacing: 0) {
-                drawerHeader(title: "新建分身", icon: "plus.circle.fill") {
+                drawerHeader(title: "new_profile".localized, icon: "plus.circle.fill") {
                     withAnimation(.easeOut(duration: 0.16)) { drawer = nil }
                 }
                 Divider()
@@ -416,7 +418,7 @@ struct OverviewView: View {
         case let .edit(name):
             if let profile = store.profiles.first(where: { $0.name == name }) {
                 VStack(spacing: 0) {
-                    drawerHeader(title: "编辑 · \(profile.name)", icon: "pencil.circle.fill") {
+                    drawerHeader(title: "edit_title".localized(with: profile.name), icon: "pencil.circle.fill") {
                         withAnimation(.easeOut(duration: 0.16)) { drawer = .detail(name) }
                     }
                     Divider()
@@ -450,7 +452,7 @@ struct OverviewView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("关闭面板 (ESC)")
+            .help("close_panel_esc".localized)
         }
         .padding(.horizontal, 14)
         .padding(.top, 12)
@@ -463,10 +465,10 @@ struct OverviewView: View {
             Image(systemName: "questionmark.circle")
                 .font(.system(size: 24))
                 .foregroundStyle(.tertiary)
-            Text("该分身已不存在")
+            Text("profile_gone".localized)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
-            SoftButton(title: "关闭") {
+            SoftButton(title: "close".localized) {
                 withAnimation(.easeOut(duration: 0.16)) { drawer = nil }
             }
             Spacer()
@@ -512,6 +514,7 @@ struct ProfileAvatarBadge: View {
 
 struct ProfileCard: View {
     @EnvironmentObject private var store: ProfileStore
+    @ObservedObject private var loc = LocalizationManager.shared
     let profile: ProfileSnapshot
     let isSelected: Bool
     let maskAccounts: Bool
@@ -581,11 +584,11 @@ struct ProfileCard: View {
                 }
 
                 if let source = profile.inheritedFrom, !source.isEmpty {
-                    Text(source == "host" ? "继承宿主配置" : "自 \(source)")
+                    Text(source == "host" ? "inherited_host_config".localized : "from_source".localized(with: source))
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                 } else {
-                    Text("独立 Chromium 沙箱")
+                    Text("independent_sandbox".localized)
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                 }
@@ -646,14 +649,14 @@ struct ProfileCard: View {
                 Image(systemName: copiedNotice ? "checkmark" : "doc.on.doc")
                     .font(.system(size: 9))
                 if copiedNotice {
-                    Text("已复制")
+                    Text("copied".localized)
                         .font(.system(size: 9))
                 }
             }
             .foregroundStyle(copiedNotice ? Color.green : Color.secondary.opacity(0.8))
         }
         .buttonStyle(.plain)
-        .help("点击复制完整账号")
+        .help("copy_full_account".localized)
     }
 
     private var cardFooter: some View {
@@ -661,7 +664,7 @@ struct ProfileCard: View {
             HStack(spacing: 3) {
                 Image(systemName: profile.size != nil ? "internaldrive" : "folder")
                     .font(.system(size: 9))
-                Text(profile.size ?? "沙箱")
+                Text(profile.size ?? "field_directory".localized)
             }
             .font(.system(size: 11))
             .foregroundStyle(.tertiary)
@@ -678,10 +681,10 @@ struct ProfileCard: View {
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.04)))
             }
             .buttonStyle(.plain)
-            .help("在 Finder 中打开此分身沙箱")
+            .help("open_in_finder".localized)
 
             SoftButton(
-                title: profile.isRunning ? "停止" : "启动",
+                title: profile.isRunning ? "stop".localized : "launch".localized,
                 systemImage: profile.isRunning ? "stop.fill" : "play.fill",
                 tint: profile.isRunning ? .red : .secondary,
                 prominent: !profile.isRunning,
@@ -696,7 +699,7 @@ struct ProfileCard: View {
             Circle()
                 .fill(profile.isRunning ? Color.green : Color.secondary.opacity(0.4))
                 .frame(width: 6, height: 6)
-            Text(profile.isRunning ? "运行中" : "已停止")
+            Text(profile.isRunning ? "running".localized : "stopped".localized)
                 .font(.system(size: 10, weight: .medium))
         }
         .padding(.horizontal, 7)
@@ -713,6 +716,7 @@ struct ProfileCard: View {
 
 struct ProfileDetailPane: View {
     @EnvironmentObject private var store: ProfileStore
+    @ObservedObject private var loc = LocalizationManager.shared
     let profile: ProfileSnapshot
     let maskAccounts: Bool
     let onClose: () -> Void
@@ -738,17 +742,17 @@ struct ProfileDetailPane: View {
         .background(Color.primary.opacity(0.025))
         .task(id: profile.name) { await reload() }
         .confirmationDialog(
-            "确定删除分身「\(profile.name)」？",
+            "confirm_delete_title".localized(with: profile.name),
             isPresented: $confirmingDelete,
             titleVisibility: .visible
         ) {
-            Button("永久删除", role: .destructive) {
+            Button("delete".localized, role: .destructive) {
                 store.delete(profile)
                 onClose()
             }
-            Button("取消", role: .cancel) {}
+            Button("cancel".localized, role: .cancel) {}
         } message: {
-            Text("该分身的登录状态、聊天记录与本地数据会被一并删除，无法恢复。")
+            Text("confirm_delete_msg".localized)
         }
     }
 
@@ -767,7 +771,7 @@ struct ProfileDetailPane: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
-            .help("编辑名字、描述与链接策略")
+            .help("edit_tooltip".localized)
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
@@ -775,7 +779,7 @@ struct ProfileDetailPane: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.tertiary)
-            .help("收起详情 (ESC)")
+            .help("close_detail".localized)
         }
         .padding(.horizontal, 12)
         .padding(.top, 12)
@@ -784,15 +788,15 @@ struct ProfileDetailPane: View {
 
     private var metadata: some View {
         VStack(alignment: .leading, spacing: 5) {
-            row("账号", shown.maskedAccount(enabled: maskAccounts), tint: shown.hasAccount ? nil : .orange)
-            row("状态", shown.isRunning ? "运行中" : "已停止")
-            row("体积", shown.displaySize)
-            row("目录", shown.directory.path)
+            row("field_account_label".localized, shown.maskedAccount(enabled: maskAccounts), tint: shown.hasAccount ? nil : .orange)
+            row("field_status_label".localized, shown.isRunning ? "running".localized : "stopped".localized)
+            row("field_size_label".localized, shown.displaySize)
+            row("field_dir_label".localized, shown.directory.path)
             if let note = shown.note, !note.isEmpty {
-                row("描述", note)
+                row("field_desc_label".localized, note)
             }
             if let source = shown.inheritedFrom {
-                row("来源", source == "host" ? "继承宿主配置" : source)
+                row("field_source_label".localized, source == "host" ? "inherited_host_config".localized : source)
             }
         }
         .padding(.horizontal, 12)
@@ -818,10 +822,10 @@ struct ProfileDetailPane: View {
     private var logSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                Text("日志")
+                Text("logs".localized)
                     .font(.system(size: 11, weight: .medium))
                 Spacer(minLength: 4)
-                Text("每 2 秒刷新")
+                Text("log_refresh_hint".localized)
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
             }
@@ -830,7 +834,7 @@ struct ProfileDetailPane: View {
             .padding(.bottom, 5)
 
             ScrollView {
-                Text(log.isEmpty ? "暂无日志" : log)
+                Text(log.isEmpty ? "no_logs_yet".localized : log)
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(Color.secondary.opacity(log.isEmpty ? 0.55 : 1))
                     .textSelection(.enabled)
@@ -844,21 +848,21 @@ struct ProfileDetailPane: View {
 
     private var actions: some View {
         HStack(spacing: 6) {
-            SoftButton(title: "Finder", systemImage: "folder") {
+            SoftButton(title: "reveal_in_finder".localized, systemImage: "folder") {
                 NSWorkspace.shared.selectFile(
                     nil,
                     inFileViewerRootedAtPath: profile.directory.path
                 )
             }
             if profile.hasAccount {
-                SoftButton(title: "复制账号", systemImage: "doc.on.doc") {
+                SoftButton(title: "copy_account".localized, systemImage: "doc.on.doc") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
-                    store.showNotice("已复制账号")
+                    store.showNotice("account_copied".localized)
                 }
             }
             Spacer(minLength: 0)
-            SoftButton(title: "删除", systemImage: "trash", tint: .red) {
+            SoftButton(title: "delete".localized, systemImage: "trash", tint: .red) {
                 confirmingDelete = true
             }
         }

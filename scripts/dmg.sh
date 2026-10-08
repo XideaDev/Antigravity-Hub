@@ -126,3 +126,16 @@ fi
 echo "==> Done. DMG built at: $DMG_PATH"
 echo "    Size: $(du -h "$DMG_PATH" | cut -f1)"
 echo "    Verify with: hdiutil mount \"$DMG_PATH\""
+
+# ----- Sparkle Appcast Generation ---------------------------------------
+KEY_FILE="${SPARKLE_KEY_FILE:-$HOME/.antigravity-hub-keys/sparkle_ed25519_priv.key}"
+if [ -f "$KEY_FILE" ] && [ -x "$ROOT/scripts/sparkle/generate_appcast" ]; then
+    echo "==> Generating Sparkle appcast.xml"
+    DOWNLOAD_PREFIX="${DOWNLOAD_PREFIX:-https://github.com/XideaDev/Antigravity-Hub/releases/download/v$VERSION/}"
+    "$ROOT/scripts/sparkle/generate_appcast" \
+        --ed-key-file "$KEY_FILE" \
+        --download-url-prefix "$DOWNLOAD_PREFIX" \
+        -o "$ROOT/appcast.xml" \
+        "$DIST"
+    echo "==> Sparkle appcast updated at: $ROOT/appcast.xml"
+fi

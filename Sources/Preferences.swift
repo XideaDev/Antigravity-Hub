@@ -7,6 +7,7 @@ enum PrefKey {
     static let menuBarIcon = "MenuBarIconID"
     static let refreshInterval = "RefreshInterval"
     static let maskAccounts = "MaskAccounts"
+    static let language = "AppLanguage"
 }
 
 // MARK: - Menu bar glyph
@@ -18,25 +19,26 @@ enum PrefKey {
 /// only thing the menu bar can tell you without a click.
 struct MenuBarGlyph: Identifiable, Hashable {
     let id: String
-    let label: String
     let idle: String
     let active: String
+
+    var label: String { "glyph_\(id)".localized }
 
     func symbol(active isActive: Bool) -> String { isActive ? active : idle }
 
     /// Labels are kept to two or three characters: the picker renders five
     /// columns inside a 348pt panel, so anything longer truncates.
     static let catalog: [MenuBarGlyph] = [
-        .init(id: "squares", label: "双叠", idle: "square.on.square", active: "square.on.square.fill"),
-        .init(id: "stack", label: "堆叠", idle: "square.stack.3d.up", active: "square.stack.3d.up.fill"),
-        .init(id: "cube", label: "立方", idle: "cube", active: "cube.fill"),
-        .init(id: "grid", label: "网格", idle: "circle.grid.2x2", active: "circle.grid.2x2.fill"),
-        .init(id: "rects", label: "矩形堆", idle: "rectangle.stack", active: "rectangle.stack.fill"),
-        .init(id: "bolt", label: "闪电", idle: "bolt", active: "bolt.fill"),
-        .init(id: "hex", label: "六边", idle: "circle.hexagongrid", active: "circle.hexagongrid.fill"),
-        .init(id: "window", label: "窗口", idle: "macwindow", active: "macwindow.on.rectangle"),
-        .init(id: "atom", label: "原子", idle: "atom", active: "atom"),
-        .init(id: "sparkles", label: "星芒", idle: "sparkles", active: "sparkles"),
+        .init(id: "squares", idle: "square.on.square", active: "square.on.square.fill"),
+        .init(id: "stack", idle: "square.stack.3d.up", active: "square.stack.3d.up.fill"),
+        .init(id: "cube", idle: "cube", active: "cube.fill"),
+        .init(id: "grid", idle: "circle.grid.2x2", active: "circle.grid.2x2.fill"),
+        .init(id: "rects", idle: "rectangle.stack", active: "rectangle.stack.fill"),
+        .init(id: "bolt", idle: "bolt", active: "bolt.fill"),
+        .init(id: "hex", idle: "circle.hexagongrid", active: "circle.hexagongrid.fill"),
+        .init(id: "window", idle: "macwindow", active: "macwindow.on.rectangle"),
+        .init(id: "atom", idle: "atom", active: "atom"),
+        .init(id: "sparkles", idle: "sparkles", active: "sparkles"),
     ]
 
     static let fallback = catalog[0]
@@ -67,18 +69,18 @@ enum RefreshCadence: Int, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .brisk: return "3 秒"
-        case .normal: return "5 秒"
-        case .relaxed: return "10 秒"
-        case .lazy: return "30 秒"
-        case .onOpen: return "仅打开面板时"
+        case .brisk: return "cadence_3s".localized
+        case .normal: return "cadence_5s".localized
+        case .relaxed: return "cadence_10s".localized
+        case .lazy: return "cadence_30s".localized
+        case .onOpen: return "cadence_on_open".localized
         }
     }
 
     var detail: String {
         switch self {
-        case .onOpen: return "菜单栏图标不会自动更新，只在点开面板时刷新"
-        default: return "每次刷新会短暂启动一个 Python 进程（约 150 毫秒）"
+        case .onOpen: return "cadence_detail_on_open".localized
+        default: return "cadence_detail_normal".localized
         }
     }
 
@@ -122,18 +124,13 @@ enum LaunchAtLogin {
     static var statusDescription: String {
         switch SMAppService.mainApp.status {
         case .enabled:
-            return "已启用，登录时自动启动"
+            return "login_item_enabled".localized
         case .requiresApproval:
-            return "等待系统确认 —— 系统设置 › 通用 › 登录项"
+            return "login_item_pending".localized
         case .notRegistered, .notFound:
-            // `.notFound` is what a freshly installed app reports *before* it
-            // has ever been registered — verified empirically with a throwaway
-            // bundle in ~/Applications, which registered successfully straight
-            // from this state. Treating it as an error would scare users away
-            // from a feature that actually works.
-            return "未启用"
+            return "login_item_disabled".localized
         @unknown default:
-            return "未启用"
+            return "login_item_disabled".localized
         }
     }
 }
