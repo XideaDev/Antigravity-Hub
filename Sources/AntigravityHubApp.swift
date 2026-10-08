@@ -85,6 +85,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.openOverview()
             }
         }
+        if CommandLine.arguments.contains("--settings") {
+            DispatchQueue.main.async { [weak self] in
+                self?.openSettings()
+            }
+        }
+        if CommandLine.arguments.contains("--panel") {
+            DispatchQueue.main.async { [weak self] in
+                PanelRouter.shared.route = .list
+                self?.showPanel()
+            }
+        }
     }
 
     /// Accessory app: closing the panel must not quit Antigravity Hub.

@@ -55,15 +55,13 @@ final class OverviewWindowController {
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1000, height: 660),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Antigravity Hub"
-        // Merge the toolbar into the title bar area so the window reads as one
-        // surface instead of a title bar stacked on top of another bar.
-        window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
         window.minSize = NSSize(width: 720, height: 460)
         window.contentMinSize = NSSize(width: 720, height: 460)
@@ -124,8 +122,6 @@ struct OverviewView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topWindowBar
-            Divider()
             heroBanner
             Divider()
             subHeader
@@ -157,53 +153,7 @@ struct OverviewView: View {
         }
     }
 
-    // MARK: - Top Window Bar (Row 1: Traffic lights + Search & Controls)
-
-    private var topWindowBar: some View {
-        HStack(spacing: 10) {
-            // Clearance for window traffic lights (close/min/zoom buttons end at x ≈ 69)
-            Color.clear
-                .frame(width: 68, height: 1)
-
-            Text("分身控制中心")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary.opacity(0.85))
-
-            Spacer(minLength: 16)
-
-            // Search Bar
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                TextField("搜索分身、账号或备注...", text: $query)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .lineLimit(1)
-                if !query.isEmpty {
-                    Button {
-                        query = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 8)
-            .frame(minWidth: 140, idealWidth: 190, maxWidth: 260)
-            .frame(height: 24)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))
-
-            privacyToggle
-                .fixedSize()
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 36)
-    }
-
-    // MARK: - Hero Banner (Row 2: 44px Big Logo + Title + Primary Action)
+    // MARK: - Hero Banner (Large Logo + Title + Primary Action)
 
     private var heroBanner: some View {
         HStack(alignment: .center, spacing: 14) {
@@ -268,38 +218,14 @@ struct OverviewView: View {
             .fixedSize()
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
         .background(Color(nsColor: .windowBackgroundColor).opacity(0.4))
     }
 
-    private var privacyToggle: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                maskAccounts.toggle()
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: maskAccounts ? "eye.slash.fill" : "eye")
-                    .font(.system(size: 11, weight: .medium))
-                Text(maskAccounts ? "已脱敏" : "脱敏")
-                    .font(.system(size: 11))
-            }
-            .foregroundStyle(maskAccounts ? Color.accentColor : Color.secondary)
-            .padding(.horizontal, 8)
-            .frame(height: 24)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(maskAccounts ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.05))
-            )
-        }
-        .buttonStyle(.plain)
-        .help(maskAccounts ? "当前已开启账号脱敏保护，点击显示完整邮箱" : "点击开启账号隐私打码 (隐藏敏感部分)")
-    }
-
-    // MARK: - Sub-header / Filter & Batch Bar
+    // MARK: - Sub-header / Filter, Search & Batch Bar
 
     private var subHeader: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             // Filter Pills
             HStack(spacing: 3) {
                 filterPill(.all, count: store.totalCount)
@@ -311,6 +237,31 @@ struct OverviewView: View {
             .fixedSize()
 
             Spacer(minLength: 8)
+
+            // Search Bar
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                TextField("搜索分身、账号或备注...", text: $query)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(minWidth: 140, idealWidth: 180, maxWidth: 220)
+            .frame(height: 24)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))
 
             // Batch actions
             HStack(spacing: 6) {

@@ -521,6 +521,7 @@ struct ProfileRow: View {
 
     @State private var confirmingDelete = false
     @State private var hovering = false
+    @AppStorage(PrefKey.maskAccounts) private var maskAccounts: Bool = false
 
     private var isBusy: Bool { store.busy.contains(profile.name) }
 
@@ -568,7 +569,7 @@ struct ProfileRow: View {
                 .lineLimit(1)
                 .layoutPriority(1)
 
-            Text(profile.displayAccount)
+            Text(profile.maskedAccount(enabled: maskAccounts))
                 .font(.system(size: 12))
                 .foregroundStyle(profile.hasAccount ? Color.secondary : Color.orange)
                 .lineLimit(1)

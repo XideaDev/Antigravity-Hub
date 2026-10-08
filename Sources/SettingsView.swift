@@ -21,6 +21,7 @@ struct SettingsPane: View {
     @EnvironmentObject private var store: ProfileStore
     let onOpenAbout: () -> Void
 
+    @AppStorage(PrefKey.maskAccounts) private var maskAccounts: Bool = false
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var loginError: String?
     @State private var cadence = RefreshCadence.current
@@ -58,6 +59,14 @@ struct SettingsPane: View {
                 loginError ?? LaunchAtLogin.statusDescription,
                 tint: loginError == nil ? Color.secondary.opacity(0.55) : .orange
             )
+
+            card {
+                Toggle("账号脱敏保护", isOn: $maskAccounts)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .font(.system(size: 13))
+            }
+            hint("在主面板与总览页面隐藏账号敏感部分，防止截屏或录屏泄露")
 
             card {
                 Text("刷新频率").font(.system(size: 13))
