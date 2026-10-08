@@ -124,7 +124,9 @@ struct OverviewView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            toolbar
+            topWindowBar
+            Divider()
+            heroBanner
             Divider()
             subHeader
             Divider()
@@ -155,33 +157,19 @@ struct OverviewView: View {
         }
     }
 
-    // MARK: - Toolbar
+    // MARK: - Top Window Bar (Row 1: Traffic lights + Search & Controls)
 
-    private var toolbar: some View {
-        HStack(spacing: 8) {
+    private var topWindowBar: some View {
+        HStack(spacing: 10) {
             // Clearance for window traffic lights (close/min/zoom buttons end at x ≈ 69)
             Color.clear
-                .frame(width: 70, height: 1)
+                .frame(width: 68, height: 1)
 
-            // Brand mark (Icon + Title, strictly single-line and vertically centered)
-            HStack(spacing: 8) {
-                if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 30, height: 30)
-                        .shadow(color: .black.opacity(0.16), radius: 2, y: 1)
-                }
-                Text("Antigravity Hub")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
-            .fixedSize()
+            Text("分身控制中心")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary.opacity(0.85))
 
-            Divider()
-                .frame(height: 14)
-                .padding(.horizontal, 2)
+            Spacer(minLength: 16)
 
             // Search Bar
             HStack(spacing: 6) {
@@ -204,29 +192,84 @@ struct OverviewView: View {
                 }
             }
             .padding(.horizontal, 8)
-            .frame(minWidth: 120, idealWidth: 180, maxWidth: 240)
-            .frame(height: 26)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
-
-            Spacer(minLength: 8)
+            .frame(minWidth: 140, idealWidth: 190, maxWidth: 260)
+            .frame(height: 24)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))
 
             privacyToggle
                 .fixedSize()
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 36)
+    }
 
-            Divider()
-                .frame(height: 14)
-                .padding(.horizontal, 2)
+    // MARK: - Hero Banner (Row 2: 44px Big Logo + Title + Primary Action)
 
-            SoftButton(title: "新建分身", systemImage: "plus", prominent: true) {
+    private var heroBanner: some View {
+        HStack(alignment: .center, spacing: 14) {
+            // Large 44x44 crisp 3D icon
+            if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 44, height: 44)
+                    .shadow(color: .black.opacity(0.18), radius: 3, y: 1.5)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text("Antigravity Hub")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Text("v0.2.0")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.accentColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(Color.accentColor.opacity(0.12))
+                        )
+                }
+                .fixedSize()
+
+                Text("多账号环境隔离 · 独立配置沙箱 · 一键多开")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 16)
+
+            // Primary Call to Action Button: 新建分身
+            Button {
                 withAnimation(.easeOut(duration: 0.18)) {
                     drawer = (drawer == .create) ? nil : .create
                 }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("新建分身")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .padding(.horizontal, 14)
+                .frame(height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.accentColor)
+                )
+                .foregroundStyle(.white)
+                .shadow(color: Color.accentColor.opacity(0.28), radius: 3, y: 1.5)
             }
+            .buttonStyle(.plain)
             .fixedSize()
         }
-        .padding(.horizontal, 14)
-        .frame(height: 34)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(nsColor: .windowBackgroundColor).opacity(0.4))
     }
 
     private var privacyToggle: some View {
