@@ -97,7 +97,7 @@ enum ProfileEngine {
     }
 
     private static func runningPIDs(matching marker: String) -> [pid_t] {
-        guard let output = runTool("/bin/ps", ["-axo", "pid=,args="]) else { return [] }
+        guard let output = runTool("/bin/ps", ["-axww", "-o", "pid=,command="]) else { return [] }
         var pids: [pid_t] = []
         for line in output.split(separator: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -550,6 +550,9 @@ enum ProfileEngine {
         """
         try? plist.write(to: bundle.appendingPathComponent("Contents/Info.plist"),
                          atomically: true, encoding: .utf8)
+
+        // Ad-hoc codesign the shortcut bundle so macOS Gatekeeper treats it as valid.
+        _ = runTool("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", bundle.path])
     }
 
     static func removeShortcut(for name: String) {
