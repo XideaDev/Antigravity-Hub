@@ -400,7 +400,8 @@ struct ConsolePanel: View {
 
     private var footer: some View {
         HStack(spacing: 6) {
-            SoftButton(title: "分身目录", systemImage: "folder") { revealProfilesDirectory() }
+            SoftButton(title: "总览", systemImage: "square.grid.2x2") { openOverview() }
+                .keyboardShortcut("o", modifiers: [.command, .shift])
             Spacer(minLength: 4)
             SoftButton(title: "平铺窗口", systemImage: "rectangle.split.2x1") { store.tileWindows() }
                 .disabled(store.isTiling)
@@ -432,8 +433,11 @@ struct ConsolePanel: View {
 
     // MARK: Actions
 
-    private func revealProfilesDirectory() {
-        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: ProfileEngine.root.path)
+    /// Hands off to the overview window and dismisses the panel — leaving both
+    /// surfaces open at once would just be two lists of the same thing.
+    private func openOverview() {
+        NotificationCenter.default.post(name: .ghubClosePanel, object: nil)
+        OverviewWindowController.shared.show(store: store)
     }
 }
 

@@ -90,6 +90,20 @@ switching windows. Nothing is shared, so nothing can collide.
   icon still tells you whether anything is running.
 - **Launch at login**, one toggle.
 
+### An overview window for when the panel is too small
+
+- **Card grid.** Every profile as a card, grouped by running state, reflowing from
+  one to five columns as you resize. Built for comparing accounts side by side
+  rather than scrolling a 348pt list.
+- **Detail pane.** Select a card and a pane opens with the full metadata — PID,
+  sandbox size, path, description — plus a live log tail that refreshes while it
+  is open. Reading logs in a full-height window is something the panel simply
+  cannot offer.
+- **Search** by profile name or Google account, once you have more than a handful.
+- **One shared state.** The window and the panel are two views of the same store,
+  so stopping a profile in one updates the other instantly. There is no second
+  polling loop and no second source of truth.
+
 ### Everything else you actually need
 
 | | |
@@ -229,6 +243,7 @@ own.
 | Start / stop a profile | The button on its row, or select and press `Return` |
 | Start / stop everything | Right-click the menu bar icon |
 | Expand a profile's details | Click its row — logs, Finder, copy account, delete |
+| **Open the overview window** | The overview button in the panel footer, right-click → 打开总览窗口, or `⌘⇧O` |
 | Tile all windows | The tile button in the panel footer |
 | Change the menu bar icon | Right-click → 设置… → 菜单栏图标 |
 | Launch at login | Right-click → 设置… → 通用 |
@@ -265,18 +280,19 @@ tokens in plain text.
 Sources/
 ├── AntigravityHubApp.swift   AppKit shell: status item, panel, right-click menu
 ├── ProfileEngine.swift       Sandbox lifecycle: create, launch, stop, inspect
-├── ProfileStore.swift        Observable state for the UI
+├── ProfileStore.swift        Observable state shared by both surfaces
 ├── Models.swift              Profile, metadata, account, snapshot types
 ├── Views.swift               Panel, profile rows, shared control chrome
+├── OverviewWindow.swift      Overview window: card grid, detail pane, log tail
 ├── SettingsView.swift        In-panel settings and about pages
 ├── CreateProfileView.swift   New-profile form
-├── LogView.swift             Log tail viewer
+├── LogView.swift             Log tail viewer for the panel
 └── Preferences.swift         Preferences, menu bar glyphs, launch-at-login
 Resources/Info.plist
 build.sh
 ```
 
-About 3,000 lines of Swift, no third-party packages.
+About 3,500 lines of Swift, no third-party packages.
 
 ---
 
@@ -312,8 +328,14 @@ No. The sandboxing is portable in principle, but the app is built on AppKit,
 - [x] Native multi-instance engine
 - [x] Menu bar panel with Liquid Glass
 - [x] Batch control, tiling, logs, launch-at-login
-- [ ] Built-in web console
+- [x] Overview window with card grid and live log tail
 - [ ] Signed release builds
+
+> **On a web console:** there will not be one. A browser UI would mean a local HTTP
+> server and a second interface to maintain, and it would contradict the whole
+> point of this project — a native app with no runtime dependencies and no
+> background service. The overview window covers the one thing a 348pt panel
+> cannot do: spreading many profiles across a large display.
 
 ---
 

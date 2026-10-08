@@ -394,6 +394,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(stopAll)
 
         menu.addItem(.separator())
+        menu.addItem(item("打开总览窗口", #selector(openOverview), key: "o", modifiers: [.command, .shift]))
         menu.addItem(item("在 Finder 中打开分身目录", #selector(revealProfiles)))
 
         menu.addItem(.separator())
@@ -415,8 +416,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = nil
     }
 
-    private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
+    private func item(
+        _ title: String,
+        _ action: Selector,
+        key: String = "",
+        modifiers: NSEvent.ModifierFlags = []
+    ) -> NSMenuItem {
         let entry = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        if !modifiers.isEmpty { entry.keyEquivalentModifierMask = modifiers }
         entry.target = self
         return entry
     }
@@ -443,6 +450,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func stopAll() {
         store.stopAll()
+    }
+
+    @objc private func openOverview() {
+        hidePanel()
+        OverviewWindowController.shared.show(store: store)
     }
 
     @objc private func revealProfiles() {
