@@ -164,16 +164,16 @@ struct OverviewView: View {
                 .frame(width: 70, height: 1)
 
             // Brand mark (Icon + Title, strictly single-line and vertically centered)
-            HStack(spacing: 7) {
+            HStack(spacing: 8) {
                 if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 30, height: 30)
                         .shadow(color: .black.opacity(0.16), radius: 2, y: 1)
                 }
                 Text("Antigravity Hub")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
             }
@@ -205,7 +205,7 @@ struct OverviewView: View {
             }
             .padding(.horizontal, 8)
             .frame(minWidth: 120, idealWidth: 180, maxWidth: 240)
-            .frame(height: 24)
+            .frame(height: 26)
             .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
 
             Spacer(minLength: 8)
@@ -226,6 +226,7 @@ struct OverviewView: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 34)
+        .padding(.bottom, 6)
     }
 
     private var privacyToggle: some View {
