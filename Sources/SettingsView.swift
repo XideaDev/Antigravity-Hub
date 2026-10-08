@@ -1,4 +1,5 @@
 import AppKit
+import Security
 import SwiftUI
 
 extension Notification.Name {
@@ -203,6 +204,33 @@ struct AboutPane: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 
+    private var buildNumber: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+    }
+
+    /// A `.app` re-signed with Developer ID and notarised has a team identifier
+    /// and a notarisation ticket; a freshly-built ad-hoc copy does not. Used
+    /// here so the user can tell whether they are running a signed release or
+    /// a development copy — and to give a clear signal once signing ships.
+    private var signingStatus: String {
+        guard let url = Bundle.main.executableURL as CFURL? else { return "未知" }
+        var staticCode: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(url, [], &staticCode) == errSecSuccess,
+              let staticCode else { return "未签名（开发副本）" }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, [], &info) == errSecSuccess,
+              let info else { return "未签名（开发副本）" }
+        let dict = info as NSDictionary
+        let team = dict[kSecCodeInfoTeamIdentifier as String] as? String
+        if let team, !team.isEmpty {
+            return "Developer ID 已公证 · 团队 \(team)"
+        }
+        // `kSecCodeInfoAuthority` is a C macro that does not bridge; the
+        // dictionary key is the raw string "authority".
+        let authority = dict["authority"] as? String
+        return authority ?? "未签名（开发副本）"
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -211,6 +239,7 @@ struct AboutPane: View {
                 infoRows
                 Divider().padding(.horizontal, 10)
                 licenses
+                Spacer(minLength: 8)
                 links
             }
             .padding(.bottom, 12)
@@ -218,30 +247,52 @@ struct AboutPane: View {
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
-            Image(systemName: MenuBarGlyph.selected.symbol(active: true))
-                .font(.system(size: 26))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 38, height: 38)
+        HStack(alignment: .center, spacing: 12) {
+            AppIconBadge()
+                .frame(width: 56, height: 56)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Antigravity Hub \(appVersion)")
-                    .font(.system(size: 14, weight: .medium))
-                Text("Google Antigravity 的 macOS 多分身管理器")
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Antigravity Hub")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("版本 \(appVersion) · 构建 \(buildNumber)")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                Text("Google Antigravity 的 macOS 多分身管理器")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .padding(.top, 12)
+        .padding(.top, 14)
         .padding(.bottom, 10)
     }
 
+    /// Visual stand-in for the .icns file. Once the chosen icon is exported
+    /// to `Resources/AppIcon.icns`, swap this for `Image(nsImage: NSImage(contentsOfFile:))`.
+    private struct AppIconBadge: View {
+        var body: some View {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(LinearGradient(
+                        colors: [Color(red: 0.36, green: 0.32, blue: 0.92),
+                                 Color(red: 0.55, green: 0.30, blue: 0.78)],
+                        startPoint: .top, endPoint: .bottom
+                    ))
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(.white)
+                    .symbolRenderingMode(.hierarchical)
+            }
+            .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
+        }
+    }
+
     private var infoRows: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 6) {
             infoRow("Antigravity", ProfileEngine.antigravityAppURL?.path ?? "未找到")
             infoRow("分身目录", ProfileEngine.root.path)
+            infoRow("签名状态", signingStatus)
             infoRow("最低系统", "macOS 14.0")
         }
         .padding(.horizontal, 12)
@@ -275,12 +326,15 @@ struct AboutPane: View {
 
     private var links: some View {
         HStack(spacing: 6) {
-            SoftButton(title: "MIT 许可证", systemImage: "arrow.up.right") {
-                NSWorkspace.shared.open(URL(string: "https://opensource.org/license/mit")!)
+            SoftButton(title: "查看更新日志", systemImage: "list.bullet.rectangle") {
+                NSWorkspace.shared.open(URL(string: "https://github.com/XideaDev/Antigravity-Hub/releases")!)
+            }
+            SoftButton(title: "项目主页", systemImage: "arrow.up.right") {
+                NSWorkspace.shared.open(URL(string: "https://github.com/XideaDev/Antigravity-Hub")!)
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .padding(.top, 8)
     }
 
