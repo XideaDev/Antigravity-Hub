@@ -65,7 +65,8 @@ final class OverviewWindowController {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
-        window.minSize = NSSize(width: 760, height: 460)
+        window.minSize = NSSize(width: 720, height: 460)
+        window.contentMinSize = NSSize(width: 720, height: 460)
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("AntigravityHubOverview")
         window.contentView = hosting
@@ -129,6 +130,8 @@ struct OverviewView: View {
             Divider()
             HStack(spacing: 0) {
                 gridArea
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
                 if let drawer {
                     Divider()
                     drawerContent(for: drawer)
@@ -138,13 +141,14 @@ struct OverviewView: View {
                 }
             }
         }
-        .frame(minWidth: 800, minHeight: 520)
+        .frame(minWidth: 720, minHeight: 460)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
-        .animation(.easeOut(duration: 0.16), value: drawer)
+        .animation(.easeOut(duration: 0.18), value: drawer)
         .animation(.easeInOut(duration: 0.14), value: filterStatus)
         .onExitCommand {
             if drawer != nil {
-                withAnimation(.easeOut(duration: 0.16)) { drawer = nil }
+                withAnimation(.easeOut(duration: 0.18)) { drawer = nil }
             } else {
                 OverviewWindowController.shared.close()
             }
@@ -155,20 +159,21 @@ struct OverviewView: View {
 
     private var toolbar: some View {
         HStack(spacing: 8) {
-            // Traffic lights spacer
-            Spacer().frame(width: 62)
+            // Fixed clearance for window traffic lights (red, yellow, green buttons)
+            Color.clear
+                .frame(width: 56, height: 1)
 
             // Brand mark
-            HStack(spacing: 7) {
+            HStack(spacing: 8) {
                 if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 20, height: 20)
-                        .shadow(color: .black.opacity(0.12), radius: 1, y: 0.5)
+                        .frame(width: 32, height: 32)
+                        .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
                 }
                 Text("Antigravity Hub")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.primary)
             }
             .padding(.trailing, 2)
@@ -210,14 +215,14 @@ struct OverviewView: View {
                 .padding(.horizontal, 2)
 
             SoftButton(title: "新建分身", systemImage: "plus", prominent: true) {
-                withAnimation(.easeOut(duration: 0.16)) {
+                withAnimation(.easeOut(duration: 0.18)) {
                     drawer = (drawer == .create) ? nil : .create
                 }
             }
         }
         .padding(.horizontal, 14)
-        .padding(.top, 10)
-        .padding(.bottom, 9)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
     }
 
     private var privacyToggle: some View {
@@ -256,15 +261,12 @@ struct OverviewView: View {
             }
             .padding(2)
             .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.04)))
+            .fixedSize()
 
             Spacer(minLength: 8)
 
             // Batch actions
             HStack(spacing: 6) {
-                Text("快捷操作:")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-
                 SoftButton(title: "全部启动", systemImage: "play.fill") { store.launchAll() }
                     .disabled(store.isBatching || store.runningCount == store.totalCount)
                 SoftButton(title: "全部停止", systemImage: "stop.fill") { store.stopAll() }
@@ -272,6 +274,7 @@ struct OverviewView: View {
                 SoftButton(title: "平铺", systemImage: "rectangle.split.2x1") { store.tileWindows() }
                     .disabled(store.isTiling)
             }
+            .fixedSize()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
@@ -322,7 +325,7 @@ struct OverviewView: View {
                                     isSelected: selectedProfileName == profile.name,
                                     maskAccounts: maskAccounts,
                                     onSelect: {
-                                        withAnimation(.easeOut(duration: 0.16)) {
+                                        withAnimation(.easeOut(duration: 0.18)) {
                                             if drawer == .detail(profile.name) {
                                                 drawer = nil
                                             } else {
@@ -335,15 +338,6 @@ struct OverviewView: View {
                                     }
                                 )
                             }
-
-                            // Show the Resource Overview Widget when profiles count is low, filling the void!
-                            if store.totalCount <= 2 && filterStatus == .all && query.isEmpty {
-                                OverviewResourceWidget {
-                                    withAnimation(.easeOut(duration: 0.16)) { drawer = .create }
-                                }
-                            } else {
-                                newProfileCard
-                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 14)
@@ -351,14 +345,6 @@ struct OverviewView: View {
                 }
                 .padding(.bottom, 24)
                 .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if drawer != nil {
-                        withAnimation(.easeOut(duration: 0.16)) {
-                            drawer = nil
-                        }
-                    }
-                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -367,51 +353,12 @@ struct OverviewView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     if drawer != nil {
-                        withAnimation(.easeOut(duration: 0.16)) {
+                        withAnimation(.easeOut(duration: 0.18)) {
                             drawer = nil
                         }
                     }
                 }
         )
-    }
-
-    private var newProfileCard: some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.16)) {
-                drawer = .create
-            }
-        } label: {
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.primary.opacity(0.04))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(Color.accentColor)
-                }
-                Text("新建分身")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text("创建隔离的 Chromium 沙箱与凭据")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 150)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.35))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(
-                        Color.primary.opacity(0.12),
-                        style: StrokeStyle(lineWidth: 1, dash: [5, 4])
-                    )
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
     }
 
     private var emptyState: some View {
@@ -560,85 +507,6 @@ struct ProfileAvatarBadge: View {
                 .foregroundStyle(.white)
         }
         .frame(width: size, height: size)
-    }
-}
-
-// MARK: - Resource Overview Widget
-
-struct OverviewResourceWidget: View {
-    @EnvironmentObject private var store: ProfileStore
-    let onNewProfile: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.accentColor)
-                Text("沙箱资源概览")
-                    .font(.system(size: 13, weight: .bold))
-                Spacer()
-                Text("健康")
-                    .font(.system(size: 10, weight: .semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.green.opacity(0.12)))
-                    .foregroundStyle(Color.green)
-            }
-
-            Text("多账号独立隔离运行，每个分身拥有专属的 Chromium 沙箱与凭据。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            VStack(spacing: 5) {
-                statRow("已建分身", "\(store.totalCount) 个实例")
-                statRow("活跃进程", "\(store.runningCount) 个运行中", tint: store.runningCount > 0 ? .green : nil)
-                statRow("沙箱根目录", "~/.antigravity-profiles")
-            }
-            .padding(8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.03)))
-
-            Spacer(minLength: 4)
-
-            Button(action: onNewProfile) {
-                HStack(spacing: 4) {
-                    Image(systemName: "plus.circle.fill")
-                    Text("新建独立分身沙箱")
-                }
-                .font(.system(size: 12, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.12)))
-                .foregroundStyle(Color.accentColor)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(13)
-        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(
-                    Color.accentColor.opacity(0.2),
-                    style: StrokeStyle(lineWidth: 1, dash: [5, 4])
-                )
-        )
-    }
-
-    private func statRow(_ label: String, _ value: String, tint: Color? = nil) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-            Spacer()
-            Text(value)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(tint ?? Color.primary)
-        }
     }
 }
 
