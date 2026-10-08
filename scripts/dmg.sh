@@ -1,17 +1,10 @@
 #!/bin/sh
-# Wrap a signed AntigravityHub.app into a drag-to-Applications DMG.
+# Wrap AntigravityHub.app into a drag-to-Applications DMG with e-paper background.
 #
-#   ./scripts/dmg.sh                build + sign the .app first, then package
-#   ./scripts/dmg.sh --app PATH     use an already-signed .app at PATH
+#   ./scripts/dmg.sh                package ./build/AntigravityHub.app or ./dist/AntigravityHub.app
+#   ./scripts/dmg.sh --app PATH     use an app at PATH
 #
 # Output: ./dist/AntigravityHub-<version>.dmg
-#
-# The DMG layout matches what macOS Finder expects when the user opens it:
-# a window 540x340 with the .app on the left, the Applications symlink on
-# the right, and an arrow underneath the .app pointing at the symlink.
-#
-# The background is an e-ink-style image at Resources/dmg/background.png
-# that the user can later swap for a brand-coloured variant.
 
 set -eu
 
@@ -27,8 +20,13 @@ if [ "${1:-}" = "--app" ] && [ -n "${2:-}" ]; then
     DEST_APP="$2"
     shift 2
 elif [ ! -d "$DEST_APP" ]; then
-    echo "❌ $DEST_APP not found. Run ./scripts/sign.sh first, or pass --app PATH." >&2
-    exit 1
+    if [ -d "$ROOT/build/AntigravityHub.app" ]; then
+        DEST_APP="$ROOT/build/AntigravityHub.app"
+    else
+        echo "==> Building app first..."
+        "$ROOT/build.sh"
+        DEST_APP="$ROOT/build/AntigravityHub.app"
+    fi
 fi
 
 if [ ! -f "$BACKGROUND" ]; then
@@ -36,79 +34,95 @@ if [ ! -f "$BACKGROUND" ]; then
     exit 1
 fi
 
-VERSION="$(/usr/bin/defaults read "$DEST_APP/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null \
-    || echo "0.0.0")"
+VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$DEST_APP/Contents/Info.plist" 2>/dev/null \
+    || defaults read "$DEST_APP/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null \
+    || echo "0.2.0")"
 DMG_PATH="$DIST/AntigravityHub-$VERSION.dmg"
+DMG_TEMP="$(mktemp -t antigravityhub-dmg-tmp).dmg"
+STAGING="$(mktemp -d -t antigravityhub-stage)"
+MOUNT_DIR="$(mktemp -d -t antigravityhub-mount)"
 
-# ----- Stage a temporary read-write bundle -----------------------------
+cleanup() {
+    hdiutil detach "$MOUNT_DIR" -force -quiet 2>/dev/null || true
+    rm -rf "$STAGING" "$MOUNT_DIR" "$DMG_TEMP"
+}
+trap cleanup EXIT
 
-STAGING="$(mktemp -d -t antigravityhub-dmg)"
-trap 'rm -rf "$STAGING"' EXIT
+mkdir -p "$DIST"
+rm -f "$DMG_TEMP" "$DMG_PATH"
 
-cp -R "$DEST_APP" "$STAGING/AntigravityHub.app"
+# ----- Stage contents into temporary directory -------------------------
+
+echo "==> Staging contents into temporary bundle"
+cp -R "$DEST_APP" "$STAGING/Antigravity Hub.app"
 ln -s /Applications "$STAGING/Applications"
 mkdir -p "$STAGING/.background"
 cp "$BACKGROUND" "$STAGING/.background/background.png"
 
-# ----- Build the DMG ----------------------------------------------------
+# ----- Create read-write temporary DMG ---------------------------------
 
-echo "==> Building DMG"
-rm -f "$DMG_PATH"
-
-# - UDRO: read-only UDIF (default since 10.5)
-# - fs HFS+: required for the .DS_Store + custom background to work
-# - format UDZO: compressed read-only
+echo "==> Creating read-write disk image"
 hdiutil create \
-    -volname "$VOLUME_NAME" \
     -srcfolder "$STAGING" \
+    -volname "$VOLUME_NAME" \
     -fs HFS+ \
-    -fsargs "-c c=64,a=16,e=16" \
-    -format UDZO \
-    -norecurse \
-    "$DMG_PATH"
+    -format UDRW \
+    -ov \
+    "$DMG_TEMP" >/dev/null
 
-# ----- Stamp the visual layout -----------------------------------------
-# hdiutil attach -> set .DS_Store window geometry -> detach
+hdiutil detach "/Volumes/$VOLUME_NAME" -force -quiet 2>/dev/null || true
+ATTACH_OUT="$(hdiutil attach -readwrite -noverify -noautoopen "$DMG_TEMP")"
+DEVICE="$(echo "$ATTACH_OUT" | awk 'NR==1{print $1}')"
+MOUNT_DIR="/Volumes/$VOLUME_NAME"
 
-echo "==> Stamping window layout"
-MOUNT="$(mktemp -d -t antigravityhub-mount)"
-trap 'rm -rf "$STAGING" "$MOUNT"' EXIT
+# ----- Configure Finder layout -----------------------------------------
 
-hdiutil attach -nobrowse -quiet -mountpoint "$MOUNT" "$DMG_PATH"
-
-# Finder writes its window geometry into .DS_Store when the volume opens.
-# AppleScript lays out a 540x340 window with the .app at (130, 160) and
-# Applications symlink at (380, 160), background image behind both.
-osascript <<APPLESCRIPT
+echo "==> Configuring Finder window layout & e-paper background"
+osascript <<APPLESCRIPT || true
 tell application "Finder"
     tell disk "$VOLUME_NAME"
         open
-        delay 1
-        set theBounds to {0, 0, 540, 340}
-        set theWindowBounds to bounds of front window
-        set bounds of front window to {0, 0, 540, 340}
-        set position of item "AntigravityHub.app" to {130, 160}
-        set position of item "Applications" to {380, 160}
-        set background view options to {2}
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set pathbar visible of container window to false
+        set the bounds of container window to {160, 110, 800, 560} -- 640 x 450 (content 640 x 420)
+        set theViewOptions to icon view options of container window
+        set arrangement of theViewOptions to not arranged
+        set icon size of theViewOptions to 96
+        set background picture of theViewOptions to file ".background:background.png"
+        set position of item "Antigravity Hub.app" of container window to {160, 180}
+        set position of item "Applications" of container window to {480, 180}
         update without registering applications
+        delay 1
+        close
     end tell
-    delay 1
 end tell
 APPLESCRIPT
 
-# Some Finder versions need a moment to flush .DS_Store before we detach.
 sync
-sleep 1
-hdiutil detach -quiet "$MOUNT"
+sleep 2
 
-# ----- Optional: code sign the DMG itself -------------------------------
+# ----- Detach and compress ----------------------------------------------
 
-IDENTITY="$(security find-identity -p codesigning -v 2>/dev/null \
-    | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+echo "==> Finalizing and compressing DMG"
+hdiutil detach "$DEVICE" -quiet 2>/dev/null || hdiutil detach "$MOUNT_DIR" -force -quiet 2>/dev/null || true
+rm -rf "$MOUNT_DIR"
+
+hdiutil convert "$DMG_TEMP" -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH" >/dev/null
+rm -f "$DMG_TEMP"
+
+# ----- Code sign DMG if identity is available ---------------------------
+
+IDENTITY="${IDENTITY:-$(security find-identity -p codesigning -v 2>/dev/null \
+    | awk -F'"' '/Developer ID Application/ {print $2; exit}')}"
 if [ -n "$IDENTITY" ]; then
-    echo "==> Signing DMG"
+    echo "==> Signing DMG with Developer ID ($IDENTITY)"
     codesign --force --sign "$IDENTITY" --timestamp "$DMG_PATH"
+else
+    echo "==> Developer ID identity not found in keychain, skipping DMG signing"
 fi
 
-echo "==> Done. $DMG_PATH"
-echo "    Open with: open \"$DMG_PATH\""
+echo "==> Done. DMG built at: $DMG_PATH"
+echo "    Size: $(du -h "$DMG_PATH" | cut -f1)"
+echo "    Verify with: hdiutil mount \"$DMG_PATH\""

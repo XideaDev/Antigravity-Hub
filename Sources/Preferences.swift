@@ -6,6 +6,7 @@ import SwiftUI
 enum PrefKey {
     static let menuBarIcon = "MenuBarIconID"
     static let refreshInterval = "RefreshInterval"
+    static let maskAccounts = "MaskAccounts"
 }
 
 // MARK: - Menu bar glyph
@@ -26,6 +27,7 @@ struct MenuBarGlyph: Identifiable, Hashable {
     /// Labels are kept to two or three characters: the picker renders five
     /// columns inside a 348pt panel, so anything longer truncates.
     static let catalog: [MenuBarGlyph] = [
+        .init(id: "squares", label: "双叠", idle: "square.on.square", active: "square.on.square.fill"),
         .init(id: "stack", label: "堆叠", idle: "square.stack.3d.up", active: "square.stack.3d.up.fill"),
         .init(id: "cube", label: "立方", idle: "cube", active: "cube.fill"),
         .init(id: "grid", label: "网格", idle: "circle.grid.2x2", active: "circle.grid.2x2.fill"),
@@ -33,7 +35,6 @@ struct MenuBarGlyph: Identifiable, Hashable {
         .init(id: "bolt", label: "闪电", idle: "bolt", active: "bolt.fill"),
         .init(id: "hex", label: "六边", idle: "circle.hexagongrid", active: "circle.hexagongrid.fill"),
         .init(id: "window", label: "窗口", idle: "macwindow", active: "macwindow.on.rectangle"),
-        .init(id: "squares", label: "双叠", idle: "square.on.square", active: "square.on.square.fill"),
         .init(id: "atom", label: "原子", idle: "atom", active: "atom"),
         .init(id: "sparkles", label: "星芒", idle: "sparkles", active: "sparkles"),
     ]

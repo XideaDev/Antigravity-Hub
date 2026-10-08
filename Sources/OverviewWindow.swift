@@ -78,12 +78,18 @@ final class OverviewWindowController {
 
 struct OverviewView: View {
     @EnvironmentObject private var store: ProfileStore
+    @AppStorage(PrefKey.maskAccounts) private var maskAccounts: Bool = false
 
     @State private var query = ""
-    @State private var selected: String?
-    @State private var isCreating = false
+    @State private var drawer: DrawerRoute?
 
-    private let columns = [GridItem(.adaptive(minimum: 196, maximum: 280), spacing: 10)]
+    enum DrawerRoute: Equatable {
+        case detail(String)  // profile name
+        case create
+        case edit(String)    // profile name
+    }
+
+    private let columns = [GridItem(.adaptive(minimum: 240, maximum: 340), spacing: 12)]
 
     private var filtered: [ProfileSnapshot] {
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
@@ -91,15 +97,18 @@ struct OverviewView: View {
         return store.profiles.filter {
             $0.name.lowercased().contains(needle)
                 || $0.displayAccount.lowercased().contains(needle)
+                || ($0.note?.lowercased().contains(needle) ?? false)
         }
     }
 
     private var running: [ProfileSnapshot] { filtered.filter(\.isRunning) }
     private var stopped: [ProfileSnapshot] { filtered.filter { !$0.isRunning } }
 
-    private var selectedProfile: ProfileSnapshot? {
-        guard let selected else { return nil }
-        return store.profiles.first { $0.name == selected }
+    private var selectedProfileName: String? {
+        switch drawer {
+        case let .detail(name), let .edit(name): return name
+        case .create, .none: return nil
+        }
     }
 
     var body: some View {
@@ -108,26 +117,25 @@ struct OverviewView: View {
             Divider()
             HStack(spacing: 0) {
                 gridArea
-                if let profile = selectedProfile {
+                if let drawer {
                     Divider()
-                    ProfileDetailPane(profile: profile, onClose: { selected = nil })
-                        .frame(width: 268)
+                    drawerContent(for: drawer)
+                        .frame(width: 310)
+                        .background(Color(nsColor: .windowBackgroundColor))
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
         }
         .frame(minWidth: 760, minHeight: 460)
         .background(Color(nsColor: .windowBackgroundColor))
-        .animation(.easeOut(duration: 0.16), value: selected)
-        .sheet(isPresented: $isCreating) {
-            CreateProfileView { created in
-                isCreating = false
-                if created { selected = nil }
+        .animation(.easeOut(duration: 0.16), value: drawer)
+        .onExitCommand {
+            if drawer != nil {
+                withAnimation(.easeOut(duration: 0.16)) { drawer = nil }
+            } else {
+                OverviewWindowController.shared.close()
             }
-            .environmentObject(store)
-            .frame(width: 400, height: 540)
         }
-        .onExitCommand { OverviewWindowController.shared.close() }
     }
 
     // MARK: Toolbar
@@ -138,6 +146,25 @@ struct OverviewView: View {
             // because the title bar is transparent.
             Spacer().frame(width: 62)
 
+            // App Brand Logo & Name (Requirement 1, Callout ❶)
+            HStack(spacing: 7) {
+                if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 19, height: 19)
+                        .shadow(color: .black.opacity(0.12), radius: 1, y: 0.5)
+                }
+                Text("Antigravity Hub")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+            .padding(.trailing, 2)
+
+            Divider()
+                .frame(height: 14)
+                .padding(.horizontal, 2)
+
             HStack(spacing: 5) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 11))
@@ -145,7 +172,17 @@ struct OverviewView: View {
                 TextField("搜索分身或账号", text: $query)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
-                    .frame(width: 168)
+                    .frame(width: 156)
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.horizontal, 8)
             .frame(height: 24)
@@ -157,40 +194,97 @@ struct OverviewView: View {
 
             Spacer(minLength: 8)
 
+            privacyToggle
+
+            Divider()
+                .frame(height: 14)
+                .padding(.horizontal, 2)
+
             SoftButton(title: "全部启动", systemImage: "play.fill") { store.launchAll() }
                 .disabled(store.isBatching || store.runningCount == store.totalCount)
             SoftButton(title: "全部停止", systemImage: "stop.fill") { store.stopAll() }
                 .disabled(store.isBatching || store.runningCount == 0)
             SoftButton(title: "平铺窗口", systemImage: "rectangle.split.2x1") { store.tileWindows() }
                 .disabled(store.isTiling)
-            SoftButton(title: "新建", systemImage: "plus", prominent: true) { isCreating = true }
+            SoftButton(title: "新建", systemImage: "plus", prominent: true) {
+                withAnimation(.easeOut(duration: 0.16)) {
+                    drawer = (drawer == .create) ? nil : .create
+                }
+            }
         }
         .padding(.horizontal, 14)
         .padding(.top, 10)
         .padding(.bottom, 9)
     }
 
+    private var privacyToggle: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                maskAccounts.toggle()
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: maskAccounts ? "eye.slash.fill" : "eye")
+                    .font(.system(size: 11, weight: .medium))
+                Text(maskAccounts ? "已脱敏" : "脱敏")
+                    .font(.system(size: 11))
+            }
+            .foregroundStyle(maskAccounts ? Color.accentColor : Color.secondary)
+            .padding(.horizontal, 7)
+            .frame(height: 24)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(maskAccounts ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.05))
+            )
+        }
+        .buttonStyle(.plain)
+        .help(maskAccounts ? "当前已开启账号脱敏保护，点击显示完整邮箱" : "点击开启账号隐私打码 (隐藏敏感部分)")
+    }
+
     // MARK: Grid
 
     private var gridArea: some View {
-        ScrollView {
-            if filtered.isEmpty {
-                emptyState
-            } else {
+        GeometryReader { proxy in
+            ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if !running.isEmpty {
-                        groupHeader("运行中 · \(running.count)")
-                        cardGrid(running, showsNewCard: stopped.isEmpty)
-                    }
-                    if !stopped.isEmpty {
-                        groupHeader("已停止 · \(stopped.count)")
-                        cardGrid(stopped, showsNewCard: true)
+                    if filtered.isEmpty {
+                        emptyState
+                            .frame(maxWidth: .infinity, minHeight: max(240, proxy.size.height - 40))
+                    } else {
+                        if !running.isEmpty {
+                            groupHeader("运行中 · \(running.count)")
+                            cardGrid(running, showsNewCard: stopped.isEmpty)
+                        }
+                        if !stopped.isEmpty {
+                            groupHeader("已停止 · \(stopped.count)")
+                            cardGrid(stopped, showsNewCard: true)
+                        }
                     }
                 }
-                .padding(.bottom, 18)
+                .padding(.bottom, 24)
+                .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if drawer != nil {
+                        withAnimation(.easeOut(duration: 0.16)) {
+                            drawer = nil
+                        }
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            Color(nsColor: .windowBackgroundColor)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if drawer != nil {
+                        withAnimation(.easeOut(duration: 0.16)) {
+                            drawer = nil
+                        }
+                    }
+                }
+        )
     }
 
     private func groupHeader(_ title: String) -> some View {
@@ -203,12 +297,21 @@ struct OverviewView: View {
     }
 
     private func cardGrid(_ items: [ProfileSnapshot], showsNewCard: Bool) -> some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
             ForEach(items) { profile in
                 ProfileCard(
                     profile: profile,
-                    isSelected: selected == profile.name,
-                    onSelect: { selected = profile.name },
+                    isSelected: selectedProfileName == profile.name,
+                    maskAccounts: maskAccounts,
+                    onSelect: {
+                        withAnimation(.easeOut(duration: 0.16)) {
+                            if drawer == .detail(profile.name) {
+                                drawer = nil
+                            } else {
+                                drawer = .detail(profile.name)
+                            }
+                        }
+                    },
                     onToggleRun: {
                         if profile.isRunning { store.stop(profile) } else { store.launch(profile) }
                     }
@@ -220,14 +323,18 @@ struct OverviewView: View {
     }
 
     private var newProfileCard: some View {
-        Button { isCreating = true } label: {
-            VStack(spacing: 5) {
-                Image(systemName: "plus")
-                    .font(.system(size: 15, weight: .medium))
-                Text("新建分身")
-                    .font(.system(size: 12))
+        Button {
+            withAnimation(.easeOut(duration: 0.16)) {
+                drawer = .create
             }
-            .frame(maxWidth: .infinity, minHeight: 108)
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .medium))
+                Text("新建分身")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .frame(maxWidth: .infinity, minHeight: 116)
             .foregroundStyle(.tertiary)
             .background(
                 RoundedRectangle(cornerRadius: 9)
@@ -250,12 +357,110 @@ struct OverviewView: View {
                 .font(.system(size: 13, weight: .medium))
             if query.isEmpty {
                 SoftButton(title: "新建第一个分身", systemImage: "plus", prominent: true) {
-                    isCreating = true
+                    withAnimation(.easeOut(duration: 0.16)) {
+                        drawer = .create
+                    }
                 }
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 90)
+    }
+
+    // MARK: Drawer
+
+    @ViewBuilder
+    private func drawerContent(for route: DrawerRoute) -> some View {
+        switch route {
+        case let .detail(name):
+            if let profile = store.profiles.first(where: { $0.name == name }) {
+                ProfileDetailPane(
+                    profile: profile,
+                    maskAccounts: maskAccounts,
+                    onClose: {
+                        withAnimation(.easeOut(duration: 0.16)) { drawer = nil }
+                    },
+                    onEdit: {
+                        withAnimation(.easeOut(duration: 0.16)) { drawer = .edit(name) }
+                    }
+                )
+            } else {
+                drawerEmptyOrGone
+            }
+
+        case .create:
+            VStack(spacing: 0) {
+                drawerHeader(title: "新建分身", icon: "plus.circle.fill") {
+                    withAnimation(.easeOut(duration: 0.16)) { drawer = nil }
+                }
+                Divider()
+                CreateProfileView { created in
+                    withAnimation(.easeOut(duration: 0.16)) {
+                        drawer = nil
+                    }
+                }
+                .environmentObject(store)
+            }
+
+        case let .edit(name):
+            if let profile = store.profiles.first(where: { $0.name == name }) {
+                VStack(spacing: 0) {
+                    drawerHeader(title: "编辑 · \(profile.name)", icon: "pencil.circle.fill") {
+                        withAnimation(.easeOut(duration: 0.16)) { drawer = .detail(name) }
+                    }
+                    Divider()
+                    EditProfileView(profile: profile) { saved in
+                        withAnimation(.easeOut(duration: 0.16)) {
+                            drawer = saved ? nil : .detail(name)
+                        }
+                    }
+                    .environmentObject(store)
+                }
+            } else {
+                drawerEmptyOrGone
+            }
+        }
+    }
+
+    private func drawerHeader(title: String, icon: String, onClose: @escaping () -> Void) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("关闭面板 (ESC)")
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+    }
+
+    private var drawerEmptyOrGone: some View {
+        VStack(spacing: 8) {
+            Spacer()
+            Image(systemName: "questionmark.circle")
+                .font(.system(size: 24))
+                .foregroundStyle(.tertiary)
+            Text("该分身已不存在")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            SoftButton(title: "关闭") {
+                withAnimation(.easeOut(duration: 0.16)) { drawer = nil }
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -265,6 +470,7 @@ struct ProfileCard: View {
     @EnvironmentObject private var store: ProfileStore
     let profile: ProfileSnapshot
     let isSelected: Bool
+    let maskAccounts: Bool
     let onSelect: () -> Void
     let onToggleRun: () -> Void
 
@@ -273,13 +479,13 @@ struct ProfileCard: View {
     private var isBusy: Bool { store.busy.contains(profile.name) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 7) {
                 Circle()
                     .fill(profile.isRunning ? Color.green : Color.secondary.opacity(0.4))
-                    .frame(width: 9, height: 9)
+                    .frame(width: 8, height: 8)
                 Text(profile.name)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 if profile.isRunning {
@@ -290,15 +496,14 @@ struct ProfileCard: View {
                 }
             }
 
-            Text(profile.displayAccount)
+            Text(profile.maskedAccount(enabled: maskAccounts))
                 .font(.system(size: 11))
                 .foregroundStyle(profile.hasAccount ? Color.secondary : Color.orange)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .help(profile.displayAccount)
 
-            Text(profile.displaySize)
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+            cardSubInfo
 
             Spacer(minLength: 6)
 
@@ -322,7 +527,7 @@ struct ProfileCard: View {
             RoundedRectangle(cornerRadius: 9)
                 .fill(isSelected
                       ? Color.accentColor.opacity(0.12)
-                      : Color.primary.opacity(hovering ? 0.07 : 0.045))
+                      : Color.primary.opacity(hovering ? 0.07 : 0.04))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 9)
@@ -333,21 +538,61 @@ struct ProfileCard: View {
         .onHover { hovering = $0 }
         .help(profile.note?.isEmpty == false ? profile.note! : profile.name)
     }
+
+    @ViewBuilder
+    private var cardSubInfo: some View {
+        if let note = profile.note, !note.trimmingCharacters(in: .whitespaces).isEmpty {
+            HStack(spacing: 4) {
+                Image(systemName: "text.bubble")
+                    .font(.system(size: 9))
+                Text(note)
+                    .lineLimit(1)
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.tertiary)
+        } else if let source = profile.inheritedFrom, !source.isEmpty {
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.triangle.branch")
+                    .font(.system(size: 9))
+                Text(source == "host" ? "继承宿主配置" : "自 \(source)")
+                    .lineLimit(1)
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.tertiary)
+        } else if let size = profile.size, !size.isEmpty {
+            HStack(spacing: 4) {
+                Image(systemName: "internaldrive")
+                    .font(.system(size: 9))
+                Text(size)
+                    .lineLimit(1)
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.tertiary)
+        } else {
+            HStack(spacing: 4) {
+                Image(systemName: "cube")
+                    .font(.system(size: 9))
+                Text("独立沙箱")
+                    .lineLimit(1)
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.tertiary)
+        }
+    }
 }
 
 // MARK: - Detail pane
 
-/// The part the 348pt panel genuinely cannot do: a full-height, readable log
-/// tail next to the profile's complete metadata.
 struct ProfileDetailPane: View {
     @EnvironmentObject private var store: ProfileStore
     let profile: ProfileSnapshot
+    let maskAccounts: Bool
     let onClose: () -> Void
+    let onEdit: () -> Void
 
     @State private var detail: ProfileSnapshot?
     @State private var log = ""
     @State private var confirmingDelete = false
-    @State private var isEditing = false
 
     private var shown: ProfileSnapshot { detail ?? profile }
 
@@ -364,22 +609,15 @@ struct ProfileDetailPane: View {
         }
         .background(Color.primary.opacity(0.025))
         .task(id: profile.name) { await reload() }
-        .sheet(isPresented: $isEditing) {
-            EditProfileView(profile: profile) { saved in
-                isEditing = false
-                // Close the pane on success: after a rename the old name no
-                // longer resolves, and the grid behind already shows the result.
-                if saved { onClose() }
-            }
-            .environmentObject(store)
-            .frame(width: 420, height: 420)
-        }
         .confirmationDialog(
             "确定删除分身「\(profile.name)」？",
             isPresented: $confirmingDelete,
             titleVisibility: .visible
         ) {
-            Button("永久删除", role: .destructive) { store.delete(profile) }
+            Button("永久删除", role: .destructive) {
+                store.delete(profile)
+                onClose()
+            }
             Button("取消", role: .cancel) {}
         } message: {
             Text("该分身的登录状态、聊天记录与本地数据会被一并删除，无法恢复。")
@@ -392,10 +630,10 @@ struct ProfileDetailPane: View {
                 .fill(profile.isRunning ? Color.green : Color.secondary.opacity(0.4))
                 .frame(width: 9, height: 9)
             Text(profile.name)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 14, weight: .semibold))
                 .lineLimit(1)
             Spacer(minLength: 4)
-            Button { isEditing = true } label: {
+            Button(action: onEdit) {
                 Image(systemName: "pencil")
                     .font(.system(size: 11, weight: .medium))
             }
@@ -409,7 +647,7 @@ struct ProfileDetailPane: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.tertiary)
-            .help("收起详情")
+            .help("收起详情 (ESC)")
         }
         .padding(.horizontal, 12)
         .padding(.top, 12)
@@ -418,7 +656,7 @@ struct ProfileDetailPane: View {
 
     private var metadata: some View {
         VStack(alignment: .leading, spacing: 5) {
-            row("账号", shown.displayAccount, tint: shown.hasAccount ? nil : .orange)
+            row("账号", shown.maskedAccount(enabled: maskAccounts), tint: shown.hasAccount ? nil : .orange)
             row("状态", shown.isRunning ? "运行中" : "已停止")
             row("体积", shown.displaySize)
             row("目录", shown.directory.path)
@@ -487,7 +725,7 @@ struct ProfileDetailPane: View {
             if profile.hasAccount {
                 SoftButton(title: "复制账号", systemImage: "doc.on.doc") {
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(profile.displayAccount, forType: .string)
+                    NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
                     store.showNotice("已复制账号")
                 }
             }

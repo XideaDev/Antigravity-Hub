@@ -222,15 +222,28 @@ struct ConsolePanel: View {
         }
     }
 
+    private var headerAppIcon: some View {
+        Group {
+            if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 17, height: 17)
+            } else {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+    }
+
     private var listHeader: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
+        HStack(spacing: 4) {
+            headerAppIcon
 
             Text("Antigravity Hub")
                 .font(.system(size: 14, weight: .semibold))
-                .padding(.leading, 3)
+                .padding(.leading, 2)
 
             if !store.profiles.isEmpty {
                 Text("\(store.runningCount)/\(store.totalCount) 运行")

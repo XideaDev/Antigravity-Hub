@@ -34,29 +34,40 @@ OUTPUT="$ROOT/dist/AntigravityHub.app"
 
 # ----- Configuration ----------------------------------------------------
 
-# Keychain identity name, as it appears in `security find-identity`.
-# Default: the first Developer ID Application identity found.
-if [ -z "${IDENTITY:-}" ]; then
-    IDENTITY="$(security find-identity -p codesigning -v 2>/dev/null \
-        | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
-    if [ -z "$IDENTITY" ]; then
-        echo "❌ No Developer ID Application identity found in keychain." >&2
-        echo "   Open Xcode > Settings > Accounts > Manage Certificates > +, " >&2
-        echo "   create a Developer ID Application certificate, then re-run." >&2
-        exit 1
-    fi
-fi
+MODE="${1:-all}"
 
-# Notary credentials. Either an API key (preferred) or apple-id + password.
-if [ -n "${KEY_ID:-}" ] && [ -n "${KEY_ISSUER:-}" ] && [ -n "${KEY_PATH:-}" ]; then
-    NOTARY_AUTH=(--key "$KEY_PATH" --key-id "$KEY_ID" --issuer "$KEY_ISSUER")
-elif [ -n "${APPLE_ID:-}" ] && [ -n "${NOTARY_PASSWORD:-}" ]; then
-    NOTARY_AUTH=(--apple-id "$APPLE_ID" --password "$NOTARY_PASSWORD")
+if [ "$MODE" = "--ad-hoc" ]; then
+    echo "==> Using ad-hoc signature mode"
+    IDENTITY="-"
 else
-    echo "❌ No notary credentials. Set KEY_ID / KEY_ISSUER / KEY_PATH" >&2
-    echo "   (recommended — see https://developer.apple.com/account/resources/authkeys/list)" >&2
-    echo "   or APPLE_ID / NOTARY_PASSWORD." >&2
-    exit 1
+    # Keychain identity name, as it appears in `security find-identity`.
+    # Default: the first Developer ID Application identity found.
+    if [ -z "${IDENTITY:-}" ]; then
+        IDENTITY="$(security find-identity -p codesigning -v 2>/dev/null \
+            | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+        if [ -z "$IDENTITY" ]; then
+            echo "❌ No Developer ID Application identity found in keychain." >&2
+            echo "   Open Xcode > Settings > Accounts > Manage Certificates > +, " >&2
+            echo "   create a Developer ID Application certificate, then re-run." >&2
+            echo "   (Or run ./scripts/sign.sh --ad-hoc for a local test package)." >&2
+            exit 1
+        fi
+    fi
+
+    # Notary credentials. Either an API key (preferred) or apple-id + password.
+    if [ "$MODE" != "--sign-only" ]; then
+        if [ -n "${KEY_ID:-}" ] && [ -n "${KEY_ISSUER:-}" ] && [ -n "${KEY_PATH:-}" ]; then
+            NOTARY_AUTH=(--key "$KEY_PATH" --key-id "$KEY_ID" --issuer "$KEY_ISSUER")
+        elif [ -n "${APPLE_ID:-}" ] && [ -n "${NOTARY_PASSWORD:-}" ]; then
+            NOTARY_AUTH=(--apple-id "$APPLE_ID" --password "$NOTARY_PASSWORD")
+        else
+            echo "❌ No notary credentials. Set KEY_ID / KEY_ISSUER / KEY_PATH" >&2
+            echo "   (recommended — see https://developer.apple.com/account/resources/authkeys/list)" >&2
+            echo "   or APPLE_ID / NOTARY_PASSWORD." >&2
+            echo "   (Or run ./scripts/sign.sh --sign-only to sign without notarization)." >&2
+            exit 1
+        fi
+    fi
 fi
 
 # ----- Steps ------------------------------------------------------------
@@ -70,9 +81,15 @@ mkdir -p "$(dirname "$OUTPUT")"
 rm -rf "$OUTPUT"
 cp -R "$INPUT" "$OUTPUT"
 
-case "${1:-all}" in
+case "$MODE" in
     --notary-only)
         echo "==> Skipping re-sign, uploading existing build"
+        ;;
+    --ad-hoc)
+        echo "==> Signing (ad-hoc): $OUTPUT"
+        codesign --force --deep --sign - "$OUTPUT"
+        echo "==> Verifying signature"
+        codesign --verify --deep --strict --verbose=2 "$OUTPUT"
         ;;
     *)
         echo "==> Re-signing with: $IDENTITY"
@@ -90,7 +107,7 @@ case "${1:-all}" in
         ;;
 esac
 
-if [ "${1:-all}" != "--sign-only" ]; then
+if [ "$MODE" != "--sign-only" ] && [ "$MODE" != "--ad-hoc" ]; then
     echo "==> Submitting for notarisation"
     # Create a zip because notarytool expects a file (or you can pass --dir).
     NOTARY_ZIP="$ROOT/dist/notary-submit.zip"

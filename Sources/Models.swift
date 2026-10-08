@@ -93,6 +93,29 @@ struct ProfileSnapshot: Identifiable, Hashable {
     var isExpired: Bool { account?.isExpired ?? false }
     var isExpiring: Bool { account?.isExpiringSoon ?? false }
     var pidLabel: String { pid.map { "PID \($0)" } ?? "—" }
+
+    func maskedAccount(enabled: Bool = true) -> String {
+        guard enabled, let email = account?.email else { return displayAccount }
+        return Self.maskEmail(email)
+    }
+
+    static func maskEmail(_ email: String) -> String {
+        let parts = email.split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false)
+        guard parts.count == 2 else { return email }
+        let user = String(parts[0])
+        let domain = String(parts[1])
+        if user.count <= 2 {
+            return String(user.prefix(1)) + "***@" + domain
+        } else if user.count <= 5 {
+            return String(user.prefix(1)) + "***" + String(user.suffix(1)) + "@" + domain
+        } else {
+            let prefixCount = min(3, max(1, user.count - 4))
+            let suffixCount = min(2, user.count - prefixCount)
+            let prefix = user.prefix(prefixCount)
+            let suffix = user.suffix(suffixCount)
+            return "\(prefix)***\(suffix)@\(domain)"
+        }
+    }
 }
 
 enum EngineError: LocalizedError {

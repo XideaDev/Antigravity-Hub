@@ -23,7 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let store = ProfileStore.shared
     private var statusItem: NSStatusItem!
     private var panel: PanelWindow!
-    private var eventMonitor: Any?
+    private var globalEventMonitor: Any?
+    private var localEventMonitor: Any?
     private var iconObserver: AnyCancellable?
     private var routeObserver: AnyCancellable?
     /// Guards `enforcePanelSize` against re-entering through the resize
@@ -51,6 +52,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NotificationCenter.default.addObserver(
             forName: .ghubClosePanel,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.hidePanel()
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -207,6 +216,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.enforcePanelSize()
         }
 
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification,
+            object: panel,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, self.panel.isVisible else { return }
+            self.hidePanel()
+        }
+
         Log.write("panel frame=\(panel.frame) opaque=\(panel.isOpaque)")
     }
 
@@ -356,22 +374,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    /// Closes the panel when the user clicks anywhere outside it. Global mouse
-    /// monitors don't fire for events delivered to our own app, so clicks
-    /// inside the panel are naturally ignored.
+    /// Closes the panel when the user clicks anywhere outside it or presses ESC.
+    ///
+    /// Global mouse monitors only catch clicks delivered to other applications.
+    /// Local monitors catch clicks delivered to our own app (e.g. the Overview
+    /// window), which global monitors silently miss.
     private func installEventMonitor() {
         removeEventMonitor()
-        eventMonitor = NSEvent.addGlobalMonitorForEvents(
+
+        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
             self?.hidePanel()
         }
+
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]
+        ) { [weak self] event in
+            guard let self, self.panel.isVisible else { return event }
+
+            if event.type == .keyDown {
+                if event.keyCode == 53 { // ESC key
+                    self.hidePanel()
+                    return nil
+                }
+                return event
+            }
+
+            // Click is inside the panel itself: permit normal interaction
+            if event.window === self.panel {
+                return event
+            }
+
+            // Click is on the status item button: let statusItemClicked toggle it
+            if let button = self.statusItem.button, event.window === button.window {
+                let locationInButton = button.convert(event.locationInWindow, from: nil)
+                if button.bounds.contains(locationInButton) {
+                    return event
+                }
+            }
+
+            // User clicked on another window in our app (e.g. the Overview Window):
+            // dismiss the panel, but still let the click reach the target window.
+            self.hidePanel()
+            return event
+        }
     }
 
     private func removeEventMonitor() {
-        if let eventMonitor {
-            NSEvent.removeMonitor(eventMonitor)
-            self.eventMonitor = nil
+        if let monitor = globalEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalEventMonitor = nil
+        }
+        if let monitor = localEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            localEventMonitor = nil
         }
     }
 

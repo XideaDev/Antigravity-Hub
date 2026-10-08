@@ -29,8 +29,11 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # fails with "sandbox_apply: Operation not permitted" inside restricted shells
 # and CI, taking macro expansion down with it. The plugin is a local Xcode
 # binary, so running it unsandboxed is fine.
+mkdir -p /tmp/clang-cache
+
 "$SWIFTC" \
 	-O \
+	-module-cache-path /tmp/clang-cache \
 	-swift-version 5 \
 	-parse-as-library \
 	-disable-sandbox \
@@ -43,12 +46,23 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "==> Assembling bundle"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
+if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
+	cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+fi
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-echo "==> Signing (ad-hoc)"
-codesign --force --sign - "$APP" >/dev/null 2>&1 \
-	&& echo "    signed" \
-	|| echo "    skipped (codesign unavailable)"
+IDENTITY="${IDENTITY:-$(security find-identity -p codesigning -v 2>/dev/null | awk -F'"' '/Developer ID Application/ {print $2; exit}')}"
+if [ -n "$IDENTITY" ]; then
+	echo "==> Signing (Developer ID: $IDENTITY)"
+	codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP" >/dev/null 2>&1 \
+		&& echo "    signed with Developer ID ($IDENTITY)" \
+		|| echo "    signing failed"
+else
+	echo "==> Signing (ad-hoc)"
+	codesign --force --sign - "$APP" >/dev/null 2>&1 \
+		&& echo "    signed (ad-hoc)" \
+		|| echo "    skipped (codesign unavailable)"
+fi
 
 echo "==> Built $APP"
 

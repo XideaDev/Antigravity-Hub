@@ -208,27 +208,42 @@ struct AboutPane: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
     }
 
-    /// A `.app` re-signed with Developer ID and notarised has a team identifier
-    /// and a notarisation ticket; a freshly-built ad-hoc copy does not. Used
-    /// here so the user can tell whether they are running a signed release or
-    /// a development copy — and to give a clear signal once signing ships.
-    private var signingStatus: String {
-        guard let url = Bundle.main.executableURL as CFURL? else { return "未知" }
+    private var signingInfo: (title: String, isDeveloperID: Bool, isSigned: Bool) {
+        guard let url = Bundle.main.executableURL as CFURL? else {
+            return ("未知状态", false, false)
+        }
         var staticCode: SecStaticCode?
         guard SecStaticCodeCreateWithPath(url, [], &staticCode) == errSecSuccess,
-              let staticCode else { return "未签名（开发副本）" }
+              let staticCode else {
+            return ("未签名（开发副本）", false, false)
+        }
         var info: CFDictionary?
         guard SecCodeCopySigningInformation(staticCode, [], &info) == errSecSuccess,
-              let info else { return "未签名（开发副本）" }
-        let dict = info as NSDictionary
-        let team = dict[kSecCodeInfoTeamIdentifier as String] as? String
-        if let team, !team.isEmpty {
-            return "Developer ID 已公证 · 团队 \(team)"
+              let info else {
+            return ("未签名（开发副本）", false, false)
         }
-        // `kSecCodeInfoAuthority` is a C macro that does not bridge; the
-        // dictionary key is the raw string "authority".
-        let authority = dict["authority"] as? String
-        return authority ?? "未签名（开发副本）"
+        let dict = info as NSDictionary
+        if let team = dict[kSecCodeInfoTeamIdentifier as String] as? String, !team.isEmpty {
+            return ("Developer ID 公证 · 团队 \(team)", true, true)
+        }
+        if let authority = dict["authority"] as? String, !authority.isEmpty {
+            let isDevID = authority.contains("Developer ID")
+            return (authority, isDevID, true)
+        }
+        if dict[kSecCodeInfoIdentifier as String] != nil {
+            return ("Ad-hoc 本地开发签名", false, true)
+        }
+        return ("未签名（开发副本）", false, false)
+    }
+
+    private var archName: String {
+        #if arch(arm64)
+        return "Apple Silicon (arm64)"
+        #elseif arch(x86_64)
+        return "Intel (x86_64)"
+        #else
+        return "Universal"
+        #endif
     }
 
     var body: some View {
@@ -237,6 +252,8 @@ struct AboutPane: View {
                 header
                 Divider().padding(.horizontal, 10)
                 infoRows
+                Divider().padding(.horizontal, 10)
+                highlights
                 Divider().padding(.horizontal, 10)
                 licenses
                 Spacer(minLength: 8)
@@ -247,17 +264,25 @@ struct AboutPane: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 14) {
             AppIconBadge()
-                .frame(width: 56, height: 56)
+                .frame(width: 58, height: 58)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Antigravity Hub")
-                    .font(.system(size: 15, weight: .semibold))
-                Text("版本 \(appVersion) · 构建 \(buildNumber)")
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text("Antigravity Hub")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("v\(appVersion)")
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1.5)
+                        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                        .foregroundStyle(Color.accentColor)
+                }
+                Text("构建 \(buildNumber) · macOS 14+")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                Text("Google Antigravity 的 macOS 多分身管理器")
+                Text("Google Antigravity 原生多分身管理器")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }
@@ -268,40 +293,113 @@ struct AboutPane: View {
         .padding(.bottom, 10)
     }
 
-    /// Visual stand-in for the .icns file. Once the chosen icon is exported
-    /// to `Resources/AppIcon.icns`, swap this for `Image(nsImage: NSImage(contentsOfFile:))`.
     private struct AppIconBadge: View {
-        var body: some View {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [Color(red: 0.36, green: 0.32, blue: 0.92),
-                                 Color(red: 0.55, green: 0.30, blue: 0.78)],
-                        startPoint: .top, endPoint: .bottom
-                    ))
-                Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(.white)
-                    .symbolRenderingMode(.hierarchical)
+        private var iconImage: NSImage? {
+            if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+               let img = NSImage(contentsOf: url), img.isValid {
+                return img
             }
-            .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
+            let sys = NSImage(named: NSImage.applicationIconName)
+            if let sys, sys.isValid { return sys }
+            return nil
+        }
+
+        var body: some View {
+            if let iconImage {
+                Image(nsImage: iconImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .shadow(color: .black.opacity(0.18), radius: 5, x: 0, y: 2)
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .fill(LinearGradient(
+                            colors: [Color(red: 0.15, green: 0.55, blue: 0.95),
+                                     Color(red: 0.98, green: 0.50, blue: 0.20)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ))
+                    Image(systemName: "circle.circle.fill")
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+                .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
+            }
         }
     }
 
     private var infoRows: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            infoRow("Antigravity", ProfileEngine.antigravityAppURL?.path ?? "未找到")
-            infoRow("分身目录", ProfileEngine.root.path)
-            infoRow("签名状态", signingStatus)
-            infoRow("最低系统", "macOS 14.0")
+        VStack(alignment: .leading, spacing: 7) {
+            infoRowWithAction("Antigravity 路径", ProfileEngine.antigravityAppURL?.path ?? "未找到") {
+                if let url = ProfileEngine.antigravityAppURL {
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
+            }
+            infoRowWithAction("分身数据目录", ProfileEngine.root.path) {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: ProfileEngine.root.path)
+            }
+            signingRow
+            infoRow("系统架构", "\(archName) · \(ProcessInfo.processInfo.operatingSystemVersionString)")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }
 
+    private var signingRow: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("签名状态")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .frame(width: 86, alignment: .leading)
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(signingInfo.isDeveloperID ? Color.green : (signingInfo.isSigned ? Color.blue : Color.orange))
+                    .frame(width: 6, height: 6)
+                Text(signingInfo.title)
+                    .font(.system(size: 11))
+                    .foregroundStyle(signingInfo.isDeveloperID ? Color.primary : Color.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var highlights: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("核心机制")
+                .font(.system(size: 12, weight: .medium))
+                .padding(.top, 10)
+
+            highlightItem(icon: "shield.lefthalf.filled", title: "物理沙箱隔离", desc: "基于 Chromium 官方 --user-data-dir 与独立 HOME，每个分身数据与配置物理隔离。")
+            highlightItem(icon: "person.badge.key.fill", title: "多账号互不干扰", desc: "各实例独立持有独立的 Google 账号与 Gemini 配额，告别反复登出与切换。")
+            highlightItem(icon: "bolt.badge.checkmark.fill", title: "零补丁 · 零依赖", desc: "不修改 Antigravity 二进制与数据库，纯 Swift 原生构建，无外部依赖。")
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
+    }
+
+    private func highlightItem(icon: String, title: String, desc: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 14, height: 14)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                Text(desc)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 1)
+    }
+
     private var licenses: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("开源许可")
+            Text("开源许可与商标声明")
                 .font(.system(size: 12, weight: .medium))
                 .padding(.top, 10)
 
@@ -310,14 +408,8 @@ struct AboutPane: View {
                 "本项目的全部代码为独立实现，未包含任何第三方管理工具的源代码。"
             )
             license(
-                "实现方式",
-                "通过 Chromium 官方的 --user-data-dir 沙箱参数与独立 HOME 隔离实例，"
-                + "不对 Antigravity 二进制做任何修改，也不篡改其数据库。"
-            )
-            license(
                 "商标声明",
-                "Google、Antigravity、Gemini 为 Google LLC 商标。"
-                + "本项目与 Google LLC 无隶属或关联关系；界面图标为系统 SF Symbols。"
+                "Google、Antigravity、Gemini 为 Google LLC 商标。本项目为非官方独立工具，与 Google LLC 无隶属关系。"
             )
         }
         .padding(.horizontal, 12)
@@ -326,16 +418,16 @@ struct AboutPane: View {
 
     private var links: some View {
         HStack(spacing: 6) {
-            SoftButton(title: "查看更新日志", systemImage: "list.bullet.rectangle") {
+            SoftButton(title: "更新日志", systemImage: "list.bullet.rectangle") {
                 NSWorkspace.shared.open(URL(string: "https://github.com/XideaDev/Antigravity-Hub/releases")!)
             }
-            SoftButton(title: "项目主页", systemImage: "arrow.up.right") {
+            SoftButton(title: "GitHub 仓库", systemImage: "arrow.up.right") {
                 NSWorkspace.shared.open(URL(string: "https://github.com/XideaDev/Antigravity-Hub")!)
             }
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .padding(.top, 8)
+        .padding(.top, 6)
     }
 
     private func infoRow(_ label: String, _ value: String) -> some View {
@@ -343,13 +435,35 @@ struct AboutPane: View {
             Text(label)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-                .frame(width: 96, alignment: .leading)
+                .frame(width: 86, alignment: .leading)
             Text(value)
                 .font(.system(size: 11))
                 .textSelection(.enabled)
                 .lineLimit(2)
                 .truncationMode(.middle)
             Spacer(minLength: 0)
+        }
+    }
+
+    private func infoRowWithAction(_ label: String, _ value: String, action: @escaping () -> Void) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .frame(width: 86, alignment: .leading)
+            Text(value)
+                .font(.system(size: 11))
+                .textSelection(.enabled)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 4)
+            Button(action: action) {
+                Image(systemName: "folder")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("在 Finder 中显示")
         }
     }
 
