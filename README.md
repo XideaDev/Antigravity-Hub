@@ -22,14 +22,17 @@ English · [简体中文](README_zh.md)
 
 ## The problem
 
-A single Antigravity installation is bound to a single Google account.
+You install Antigravity. You sign in. You start shipping.
 
-That means one quota, one extension set, one workspace history, one set of
-credentials. The moment you want a work account *and* a personal account — or you
-simply keep hitting Gemini Pro rate limits mid-task — you are stuck signing in and
-out, losing your session state every time you switch.
+Then the second account arrives — a client, a side project, a fresh Gemini Pro
+quota — and the IDE suddenly has **no way to handle it**.
 
-There is no "add account" button. There is no profile switcher.
+One Google account per install. One quota. One set of extensions. One workspace
+history. One signing-in-and-out that costs you your session state every time you
+switch.
+
+No "add account" button. No profile switcher. No keyboard shortcut that quietly
+swaps identities. Just the same login wall, every single time.
 
 ## What Antigravity Hub does
 
@@ -140,6 +143,36 @@ switching windows. Nothing is shared, so nothing can collide.
 | **Finder integration** | Reveal any sandbox, or generate a Spotlight-searchable `Antigravity (name).app` |
 
 ---
+
+## Changelog
+
+### 0.3.0 — Edit profiles
+- **Rename** any profile — the sandbox directory and its Spotlight shortcut
+  follow. The OAuth token, settings and config never reference the profile's
+  own absolute path, so the sign-in survives. Renaming still requires the
+  profile to be stopped.
+- **Re-describe** profiles in place.
+- **Tighten the symlink policy after the fact.** Switching from *full* to
+  *minimal* immediately removes the `.ssh` and `.config` symlinks from that
+  sandbox — the main lever for shrinking what an agent inside a profile can
+  read. Only symlinks are removed; real directories are left alone.
+
+### 0.2.0 — Overview window
+- A real resizable window, opened from the panel footer, the right-click menu
+  or `⌘⇧O`. Brought forward rather than duplicated if already open.
+- Adaptive card grid (one to five columns) grouped by running state, with a
+  search field.
+- Detail pane on selection: full metadata plus a live log tail that refreshes
+  every two seconds while the pane is open.
+- Reads the same store as the panel — one source of truth, no second polling
+  loop.
+
+### 0.1.0 — First release
+- Native Swift multi-instance engine — no CLI, no Python, no helper daemon.
+- Menu bar panel with `Liquid Glass` on macOS 26+, classic vibrancy below.
+- Right-click menu for app-level actions (start all, stop all, settings).
+- Keyboard navigation, batch control, window tiling, per-profile log tail,
+  ten selectable menu bar icons, launch at login via `SMAppService`.
 
 ## How the sandbox works
 
@@ -349,17 +382,42 @@ No. The sandboxing is portable in principle, but the app is built on AppKit,
 
 ## Roadmap
 
-- [x] Native multi-instance engine
-- [x] Menu bar panel with Liquid Glass
-- [x] Batch control, tiling, logs, launch-at-login
-- [x] Overview window with card grid and live log tail
-- [ ] Signed release builds
+### Shipped
+- [x] Native multi-instance engine — one Chromium process tree per profile,
+  with `createsNewApplicationInstance` and the `SSH_CONNECTION` trick to keep
+  OAuth tokens inside each sandbox
+- [x] Menu bar panel with `Liquid Glass` on macOS 26+, classic vibrancy below
+- [x] Right-click menu, keyboard navigation, batch control, window tiling,
+  per-profile log tail, ten menu bar icons, launch at login
+- [x] Overview window with adaptive card grid and live log detail pane
+- [x] Profile editing — rename, re-describe, tighten the symlink policy
+  after the fact
 
-> **On a web console:** there will not be one. A browser UI would mean a local HTTP
-> server and a second interface to maintain, and it would contradict the whole
-> point of this project — a native app with no runtime dependencies and no
-> background service. The overview window covers the one thing a 348pt panel
-> cannot do: spreading many profiles across a large display.
+### Next
+- [ ] **Signed release builds** — Developer ID + notarization so `Antigravity
+  Hub.app` can ship without the "unidentified developer" gate
+- [ ] **DMG distribution** — drag-to-Applications installer with an
+  e-icon-style background
+- [ ] **Homebrew Cask** — `brew install --cask xideadev/antigravity-hub` for
+  one-line installation
+- [ ] **Localization** — currently English + Simplified Chinese. Add Japanese
+  on request.
+
+### Considered, but explicitly not planned
+- **Web console.** A browser UI would mean a local HTTP server and a second
+  interface to maintain, contradicting the project's native-app,
+  zero-dependency positioning. The overview window already covers the one
+  thing a 348pt panel cannot do: spreading many profiles across a large
+  display.
+- **Real Gemini Pro quota display.** Antigravity does not expose this
+  programmatically; reverse-engineering an undocumented endpoint is out of
+  scope and fragile. The current session-state visibility is enough to know
+  whether a profile is healthy.
+- **Plugin marketplace.** Out of scope for a single-developer utility; would
+  become a maintenance surface of its own.
+
+Have an idea that does not fit any of the above? Open an issue — small
+contributions that match the project tone are welcome.
 
 ---
 
