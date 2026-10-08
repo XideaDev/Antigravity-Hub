@@ -69,13 +69,6 @@ final class OverviewWindowController {
         window.contentMinSize = NSSize(width: 720, height: 460)
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("AntigravityHubOverview")
-
-        // Attach an NSToolbar with unified style so macOS automatically expands
-        // the titlebar to 52pt and centers the traffic light buttons vertically.
-        let toolbar = NSToolbar(identifier: "OverviewToolbar")
-        window.toolbar = toolbar
-        window.toolbarStyle = .unified
-
         window.contentView = hosting
         window.center()
         self.window = window
@@ -148,7 +141,6 @@ struct OverviewView: View {
                 }
             }
         }
-        .ignoresSafeArea()
         .frame(minWidth: 720, minHeight: 460)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -166,29 +158,29 @@ struct OverviewView: View {
     // MARK: - Toolbar
 
     private var toolbar: some View {
-        HStack(spacing: 10) {
-            // Clearance for window traffic lights (red, yellow, green buttons) in unified titlebar
+        HStack(spacing: 8) {
+            // Clearance for window traffic lights (close/min/zoom buttons end at x ≈ 69)
             Color.clear
-                .frame(width: 74, height: 1)
+                .frame(width: 70, height: 1)
 
             // Brand mark (Icon + Title, strictly single-line and vertically centered)
-            HStack(spacing: 8) {
+            HStack(spacing: 7) {
                 if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 24, height: 24)
                         .shadow(color: .black.opacity(0.16), radius: 2, y: 1)
                 }
                 Text("Antigravity Hub")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
             }
             .fixedSize()
 
             Divider()
-                .frame(height: 16)
+                .frame(height: 14)
                 .padding(.horizontal, 2)
 
             // Search Bar
@@ -212,9 +204,9 @@ struct OverviewView: View {
                 }
             }
             .padding(.horizontal, 8)
-            .frame(minWidth: 130, idealWidth: 190, maxWidth: 260)
-            .frame(height: 28)
-            .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.05)))
+            .frame(minWidth: 120, idealWidth: 180, maxWidth: 240)
+            .frame(height: 24)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
 
             Spacer(minLength: 8)
 
@@ -222,7 +214,7 @@ struct OverviewView: View {
                 .fixedSize()
 
             Divider()
-                .frame(height: 16)
+                .frame(height: 14)
                 .padding(.horizontal, 2)
 
             SoftButton(title: "新建分身", systemImage: "plus", prominent: true) {
@@ -232,9 +224,8 @@ struct OverviewView: View {
             }
             .fixedSize()
         }
-        .padding(.horizontal, 16)
-        .frame(height: 52)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .padding(.horizontal, 14)
+        .frame(height: 34)
     }
 
     private var privacyToggle: some View {
@@ -251,7 +242,7 @@ struct OverviewView: View {
             }
             .foregroundStyle(maskAccounts ? Color.accentColor : Color.secondary)
             .padding(.horizontal, 8)
-            .frame(height: 26)
+            .frame(height: 24)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(maskAccounts ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.05))
