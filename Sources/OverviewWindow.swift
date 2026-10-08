@@ -81,7 +81,15 @@ struct OverviewView: View {
     @AppStorage(PrefKey.maskAccounts) private var maskAccounts: Bool = false
 
     @State private var query = ""
+    @State private var filterStatus: FilterStatus = .all
     @State private var drawer: DrawerRoute?
+
+    enum FilterStatus: String, CaseIterable, Identifiable {
+        case all = "全部"
+        case running = "运行中"
+        case stopped = "已停止"
+        var id: String { rawValue }
+    }
 
     enum DrawerRoute: Equatable {
         case detail(String)  // profile name
@@ -89,20 +97,22 @@ struct OverviewView: View {
         case edit(String)    // profile name
     }
 
-    private let columns = [GridItem(.adaptive(minimum: 240, maximum: 340), spacing: 12)]
+    private let columns = [GridItem(.adaptive(minimum: 280, maximum: 380), spacing: 14)]
 
     private var filtered: [ProfileSnapshot] {
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !needle.isEmpty else { return store.profiles }
-        return store.profiles.filter {
-            $0.name.lowercased().contains(needle)
-                || $0.displayAccount.lowercased().contains(needle)
-                || ($0.note?.lowercased().contains(needle) ?? false)
+        let matching = store.profiles.filter { profile in
+            guard !needle.isEmpty else { return true }
+            return profile.name.lowercased().contains(needle)
+                || profile.displayAccount.lowercased().contains(needle)
+                || (profile.note?.lowercased().contains(needle) ?? false)
+        }
+        switch filterStatus {
+        case .all: return matching
+        case .running: return matching.filter(\.isRunning)
+        case .stopped: return matching.filter { !$0.isRunning }
         }
     }
-
-    private var running: [ProfileSnapshot] { filtered.filter(\.isRunning) }
-    private var stopped: [ProfileSnapshot] { filtered.filter { !$0.isRunning } }
 
     private var selectedProfileName: String? {
         switch drawer {
@@ -115,20 +125,23 @@ struct OverviewView: View {
         VStack(spacing: 0) {
             toolbar
             Divider()
+            subHeader
+            Divider()
             HStack(spacing: 0) {
                 gridArea
                 if let drawer {
                     Divider()
                     drawerContent(for: drawer)
-                        .frame(width: 310)
+                        .frame(width: 320)
                         .background(Color(nsColor: .windowBackgroundColor))
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
         }
-        .frame(minWidth: 760, minHeight: 460)
+        .frame(minWidth: 800, minHeight: 520)
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.easeOut(duration: 0.16), value: drawer)
+        .animation(.easeInOut(duration: 0.14), value: filterStatus)
         .onExitCommand {
             if drawer != nil {
                 withAnimation(.easeOut(duration: 0.16)) { drawer = nil }
@@ -138,21 +151,20 @@ struct OverviewView: View {
         }
     }
 
-    // MARK: Toolbar
+    // MARK: - Toolbar
 
     private var toolbar: some View {
         HStack(spacing: 8) {
-            // Leaves room for the traffic lights, which float over this row
-            // because the title bar is transparent.
+            // Traffic lights spacer
             Spacer().frame(width: 62)
 
-            // App Brand Logo & Name (Requirement 1, Callout ❶)
+            // Brand mark
             HStack(spacing: 7) {
                 if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 19, height: 19)
+                        .frame(width: 20, height: 20)
                         .shadow(color: .black.opacity(0.12), radius: 1, y: 0.5)
                 }
                 Text("Antigravity Hub")
@@ -165,14 +177,15 @@ struct OverviewView: View {
                 .frame(height: 14)
                 .padding(.horizontal, 2)
 
-            HStack(spacing: 5) {
+            // Search Bar
+            HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
-                TextField("搜索分身或账号", text: $query)
+                TextField("搜索分身、账号或备注...", text: $query)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
-                    .frame(width: 156)
+                    .frame(width: 170)
                 if !query.isEmpty {
                     Button {
                         query = ""
@@ -185,12 +198,8 @@ struct OverviewView: View {
                 }
             }
             .padding(.horizontal, 8)
-            .frame(height: 24)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))
-
-            Text(store.statusSummary)
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+            .frame(height: 25)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.05)))
 
             Spacer(minLength: 8)
 
@@ -200,13 +209,7 @@ struct OverviewView: View {
                 .frame(height: 14)
                 .padding(.horizontal, 2)
 
-            SoftButton(title: "全部启动", systemImage: "play.fill") { store.launchAll() }
-                .disabled(store.isBatching || store.runningCount == store.totalCount)
-            SoftButton(title: "全部停止", systemImage: "stop.fill") { store.stopAll() }
-                .disabled(store.isBatching || store.runningCount == 0)
-            SoftButton(title: "平铺窗口", systemImage: "rectangle.split.2x1") { store.tileWindows() }
-                .disabled(store.isTiling)
-            SoftButton(title: "新建", systemImage: "plus", prominent: true) {
+            SoftButton(title: "新建分身", systemImage: "plus", prominent: true) {
                 withAnimation(.easeOut(duration: 0.16)) {
                     drawer = (drawer == .create) ? nil : .create
                 }
@@ -230,7 +233,7 @@ struct OverviewView: View {
                     .font(.system(size: 11))
             }
             .foregroundStyle(maskAccounts ? Color.accentColor : Color.secondary)
-            .padding(.horizontal, 7)
+            .padding(.horizontal, 8)
             .frame(height: 24)
             .background(
                 RoundedRectangle(cornerRadius: 6)
@@ -241,24 +244,109 @@ struct OverviewView: View {
         .help(maskAccounts ? "当前已开启账号脱敏保护，点击显示完整邮箱" : "点击开启账号隐私打码 (隐藏敏感部分)")
     }
 
-    // MARK: Grid
+    // MARK: - Sub-header / Filter & Batch Bar
+
+    private var subHeader: some View {
+        HStack(spacing: 8) {
+            // Filter Pills
+            HStack(spacing: 3) {
+                filterPill(.all, count: store.totalCount)
+                filterPill(.running, count: store.runningCount, dotColor: .green)
+                filterPill(.stopped, count: store.stoppedCount, dotColor: .secondary.opacity(0.4))
+            }
+            .padding(2)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.04)))
+
+            Spacer(minLength: 8)
+
+            // Batch actions
+            HStack(spacing: 6) {
+                Text("快捷操作:")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+
+                SoftButton(title: "全部启动", systemImage: "play.fill") { store.launchAll() }
+                    .disabled(store.isBatching || store.runningCount == store.totalCount)
+                SoftButton(title: "全部停止", systemImage: "stop.fill") { store.stopAll() }
+                    .disabled(store.isBatching || store.runningCount == 0)
+                SoftButton(title: "平铺", systemImage: "rectangle.split.2x1") { store.tileWindows() }
+                    .disabled(store.isTiling)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Color(nsColor: .windowBackgroundColor).opacity(0.5))
+    }
+
+    private func filterPill(_ filter: FilterStatus, count: Int, dotColor: Color? = nil) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.12)) {
+                filterStatus = filter
+            }
+        } label: {
+            HStack(spacing: 4) {
+                if let dotColor {
+                    Circle()
+                        .fill(dotColor)
+                        .frame(width: 6, height: 6)
+                }
+                Text("\(filter.rawValue) (\(count))")
+                    .font(.system(size: 11, weight: filterStatus == filter ? .semibold : .regular))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(filterStatus == filter ? Color(nsColor: .controlBackgroundColor) : Color.clear)
+                    .shadow(color: Color.black.opacity(filterStatus == filter ? 0.06 : 0), radius: 1, y: 0.5)
+            )
+            .foregroundStyle(filterStatus == filter ? Color.primary : Color.secondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Grid Area
 
     private var gridArea: some View {
         GeometryReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 14) {
                     if filtered.isEmpty {
                         emptyState
                             .frame(maxWidth: .infinity, minHeight: max(240, proxy.size.height - 40))
                     } else {
-                        if !running.isEmpty {
-                            groupHeader("运行中 · \(running.count)")
-                            cardGrid(running, showsNewCard: stopped.isEmpty)
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                            ForEach(filtered) { profile in
+                                ProfileCard(
+                                    profile: profile,
+                                    isSelected: selectedProfileName == profile.name,
+                                    maskAccounts: maskAccounts,
+                                    onSelect: {
+                                        withAnimation(.easeOut(duration: 0.16)) {
+                                            if drawer == .detail(profile.name) {
+                                                drawer = nil
+                                            } else {
+                                                drawer = .detail(profile.name)
+                                            }
+                                        }
+                                    },
+                                    onToggleRun: {
+                                        if profile.isRunning { store.stop(profile) } else { store.launch(profile) }
+                                    }
+                                )
+                            }
+
+                            // Show the Resource Overview Widget when profiles count is low, filling the void!
+                            if store.totalCount <= 2 && filterStatus == .all && query.isEmpty {
+                                OverviewResourceWidget {
+                                    withAnimation(.easeOut(duration: 0.16)) { drawer = .create }
+                                }
+                            } else {
+                                newProfileCard
+                            }
                         }
-                        if !stopped.isEmpty {
-                            groupHeader("已停止 · \(stopped.count)")
-                            cardGrid(stopped, showsNewCard: true)
-                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 14)
                     }
                 }
                 .padding(.bottom, 24)
@@ -287,63 +375,41 @@ struct OverviewView: View {
         )
     }
 
-    private func groupHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 11))
-            .foregroundStyle(.tertiary)
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 7)
-    }
-
-    private func cardGrid(_ items: [ProfileSnapshot], showsNewCard: Bool) -> some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-            ForEach(items) { profile in
-                ProfileCard(
-                    profile: profile,
-                    isSelected: selectedProfileName == profile.name,
-                    maskAccounts: maskAccounts,
-                    onSelect: {
-                        withAnimation(.easeOut(duration: 0.16)) {
-                            if drawer == .detail(profile.name) {
-                                drawer = nil
-                            } else {
-                                drawer = .detail(profile.name)
-                            }
-                        }
-                    },
-                    onToggleRun: {
-                        if profile.isRunning { store.stop(profile) } else { store.launch(profile) }
-                    }
-                )
-            }
-            if showsNewCard { newProfileCard }
-        }
-        .padding(.horizontal, 16)
-    }
-
     private var newProfileCard: some View {
         Button {
             withAnimation(.easeOut(duration: 0.16)) {
                 drawer = .create
             }
         } label: {
-            VStack(spacing: 6) {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .medium))
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(Color.primary.opacity(0.04))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "plus")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color.accentColor)
+                }
                 Text("新建分身")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("创建隔离的 Chromium 沙箱与凭据")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
             }
-            .frame(maxWidth: .infinity, minHeight: 116)
-            .foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity, minHeight: 150)
             .background(
-                RoundedRectangle(cornerRadius: 9)
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.35))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(
                         Color.primary.opacity(0.12),
-                        style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                        style: StrokeStyle(lineWidth: 1, dash: [5, 4])
                     )
             )
-            .contentShape(RoundedRectangle(cornerRadius: 9))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }
@@ -351,7 +417,7 @@ struct OverviewView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: query.isEmpty ? "tray" : "magnifyingglass")
-                .font(.system(size: 26))
+                .font(.system(size: 28))
                 .foregroundStyle(.tertiary)
             Text(query.isEmpty ? "还没有分身" : "没有匹配的分身")
                 .font(.system(size: 13, weight: .medium))
@@ -367,7 +433,7 @@ struct OverviewView: View {
         .padding(.top, 90)
     }
 
-    // MARK: Drawer
+    // MARK: - Drawer
 
     @ViewBuilder
     private func drawerContent(for route: DrawerRoute) -> some View {
@@ -464,6 +530,118 @@ struct OverviewView: View {
     }
 }
 
+// MARK: - Profile Avatar Badge
+
+struct ProfileAvatarBadge: View {
+    let name: String
+    var size: CGFloat = 36
+
+    private var gradient: LinearGradient {
+        let colors: [[Color]] = [
+            [Color(red: 0.35, green: 0.45, blue: 0.98), Color(red: 0.25, green: 0.75, blue: 0.95)], // Indigo to Cyan
+            [Color(red: 0.58, green: 0.35, blue: 0.95), Color(red: 0.92, green: 0.35, blue: 0.75)], // Purple to Pink
+            [Color(red: 0.15, green: 0.75, blue: 0.60), Color(red: 0.25, green: 0.85, blue: 0.45)], // Teal to Emerald
+            [Color(red: 0.98, green: 0.50, blue: 0.25), Color(red: 0.98, green: 0.75, blue: 0.25)], // Orange to Amber
+            [Color(red: 0.10, green: 0.55, blue: 0.95), Color(red: 0.35, green: 0.35, blue: 0.90)]  // Blue to Deep Indigo
+        ]
+        let hash = abs(name.hashValue)
+        let pair = colors[hash % colors.count]
+        return LinearGradient(colors: pair, startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                .fill(gradient)
+                .shadow(color: Color.black.opacity(0.12), radius: 2, y: 1)
+
+            Text(String(name.prefix(1)).uppercased())
+                .font(.system(size: size * 0.48, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Resource Overview Widget
+
+struct OverviewResourceWidget: View {
+    @EnvironmentObject private var store: ProfileStore
+    let onNewProfile: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.accentColor)
+                Text("沙箱资源概览")
+                    .font(.system(size: 13, weight: .bold))
+                Spacer()
+                Text("健康")
+                    .font(.system(size: 10, weight: .semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.green.opacity(0.12)))
+                    .foregroundStyle(Color.green)
+            }
+
+            Text("多账号独立隔离运行，每个分身拥有专属的 Chromium 沙箱与凭据。")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(spacing: 5) {
+                statRow("已建分身", "\(store.totalCount) 个实例")
+                statRow("活跃进程", "\(store.runningCount) 个运行中", tint: store.runningCount > 0 ? .green : nil)
+                statRow("沙箱根目录", "~/.antigravity-profiles")
+            }
+            .padding(8)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.03)))
+
+            Spacer(minLength: 4)
+
+            Button(action: onNewProfile) {
+                HStack(spacing: 4) {
+                    Image(systemName: "plus.circle.fill")
+                    Text("新建独立分身沙箱")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.12)))
+                .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(13)
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(
+                    Color.accentColor.opacity(0.2),
+                    style: StrokeStyle(lineWidth: 1, dash: [5, 4])
+                )
+        )
+    }
+
+    private func statRow(_ label: String, _ value: String, tint: Color? = nil) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(tint ?? Color.primary)
+        }
+    }
+}
+
 // MARK: - Card
 
 struct ProfileCard: View {
@@ -475,109 +653,193 @@ struct ProfileCard: View {
     let onToggleRun: () -> Void
 
     @State private var hovering = false
+    @State private var copiedNotice = false
 
     private var isBusy: Bool { store.busy.contains(profile.name) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 7) {
-                Circle()
-                    .fill(profile.isRunning ? Color.green : Color.secondary.opacity(0.4))
-                    .frame(width: 8, height: 8)
-                Text(profile.name)
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                Spacer(minLength: 4)
-                if profile.isRunning {
-                    Text("PID \(profile.pid ?? 0)")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                        .monospacedDigit()
-                }
-            }
-
-            Text(profile.maskedAccount(enabled: maskAccounts))
-                .font(.system(size: 11))
-                .foregroundStyle(profile.hasAccount ? Color.secondary : Color.orange)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .help(profile.displayAccount)
-
-            cardSubInfo
-
-            Spacer(minLength: 6)
-
-            HStack(spacing: 6) {
-                SoftButton(
-                    title: profile.isRunning ? "停止" : "启动",
-                    systemImage: profile.isRunning ? "stop.fill" : "play.fill",
-                    prominent: !profile.isRunning,
-                    action: onToggleRun
-                )
-                .disabled(isBusy || store.isBatching)
-                Spacer(minLength: 0)
-                if isBusy {
-                    ProgressView().controlSize(.mini).scaleEffect(0.55)
-                }
-            }
+        VStack(alignment: .leading, spacing: 10) {
+            cardHeader
+            accountSection
+            cardFooter
         }
-        .padding(11)
-        .frame(maxWidth: .infinity, minHeight: 116, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 9)
-                .fill(isSelected
-                      ? Color.accentColor.opacity(0.12)
-                      : Color.primary.opacity(hovering ? 0.07 : 0.04))
+        .padding(13)
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .background(cardBackground)
+        .overlay(cardBorder)
+        .shadow(
+            color: Color.black.opacity(hovering ? 0.06 : 0.02),
+            radius: hovering ? 5 : 2,
+            y: hovering ? 2 : 1
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 9)
-                .strokeBorder(Color.accentColor.opacity(isSelected ? 0.55 : 0), lineWidth: 1.5)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 9))
+        .contentShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture(perform: onSelect)
         .onHover { hovering = $0 }
-        .help(profile.note?.isEmpty == false ? profile.note! : profile.name)
     }
 
-    @ViewBuilder
-    private var cardSubInfo: some View {
-        if let note = profile.note, !note.trimmingCharacters(in: .whitespaces).isEmpty {
-            HStack(spacing: 4) {
-                Image(systemName: "text.bubble")
-                    .font(.system(size: 9))
-                Text(note)
-                    .lineLimit(1)
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(isSelected
+                  ? Color.accentColor.opacity(0.09)
+                  : Color(nsColor: .controlBackgroundColor).opacity(hovering ? 0.95 : 0.75))
+    }
+
+    private var cardBorder: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .strokeBorder(
+                isSelected
+                    ? Color.accentColor.opacity(0.65)
+                    : Color.primary.opacity(hovering ? 0.16 : 0.08),
+                lineWidth: isSelected ? 1.5 : 1
+            )
+    }
+
+    private var cardHeader: some View {
+        HStack(spacing: 9) {
+            ProfileAvatarBadge(name: profile.name, size: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(profile.name)
+                        .font(.system(size: 14, weight: .bold))
+                        .lineLimit(1)
+
+                    if profile.isRunning {
+                        Text("PID \(profile.pid ?? 0)")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(RoundedRectangle(cornerRadius: 3).fill(Color.primary.opacity(0.04)))
+                    }
+                }
+
+                if let source = profile.inheritedFrom, !source.isEmpty {
+                    Text(source == "host" ? "继承宿主配置" : "自 \(source)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text("独立 Chromium 沙箱")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
             }
-            .font(.system(size: 11))
-            .foregroundStyle(.tertiary)
-        } else if let source = profile.inheritedFrom, !source.isEmpty {
-            HStack(spacing: 4) {
-                Image(systemName: "arrow.triangle.branch")
-                    .font(.system(size: 9))
-                Text(source == "host" ? "继承宿主配置" : "自 \(source)")
-                    .lineLimit(1)
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(.tertiary)
-        } else if let size = profile.size, !size.isEmpty {
-            HStack(spacing: 4) {
-                Image(systemName: "internaldrive")
-                    .font(.system(size: 9))
-                Text(size)
-                    .lineLimit(1)
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(.tertiary)
-        } else {
-            HStack(spacing: 4) {
-                Image(systemName: "cube")
-                    .font(.system(size: 9))
-                Text("独立沙箱")
-                    .lineLimit(1)
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(.tertiary)
+
+            Spacer(minLength: 4)
+
+            statusPill
         }
+    }
+
+    private var accountSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 5) {
+                Image(systemName: "person.circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+
+                Text(profile.maskedAccount(enabled: maskAccounts))
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(profile.hasAccount ? Color.secondary : Color.orange)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer(minLength: 2)
+
+                if profile.hasAccount {
+                    copyButton
+                }
+            }
+
+            if let note = profile.note, !note.trimmingCharacters(in: .whitespaces).isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "text.bubble")
+                        .font(.system(size: 9))
+                    Text(note)
+                        .lineLimit(1)
+                }
+                .font(.system(size: 10))
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(RoundedRectangle(cornerRadius: 4).fill(Color.accentColor.opacity(0.08)))
+            }
+        }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.03)))
+    }
+
+    private var copyButton: some View {
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+            copiedNotice = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copiedNotice = false }
+        } label: {
+            HStack(spacing: 2) {
+                Image(systemName: copiedNotice ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 9))
+                if copiedNotice {
+                    Text("已复制")
+                        .font(.system(size: 9))
+                }
+            }
+            .foregroundStyle(copiedNotice ? Color.green : Color.secondary.opacity(0.8))
+        }
+        .buttonStyle(.plain)
+        .help("点击复制完整账号")
+    }
+
+    private var cardFooter: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 3) {
+                Image(systemName: profile.size != nil ? "internaldrive" : "folder")
+                    .font(.system(size: 9))
+                Text(profile.size ?? "沙箱")
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.tertiary)
+
+            Spacer(minLength: 4)
+
+            Button {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: profile.directory.path)
+            } label: {
+                Image(systemName: "folder")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 24)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.04)))
+            }
+            .buttonStyle(.plain)
+            .help("在 Finder 中打开此分身沙箱")
+
+            SoftButton(
+                title: profile.isRunning ? "停止" : "启动",
+                systemImage: profile.isRunning ? "stop.fill" : "play.fill",
+                tint: profile.isRunning ? .red : .secondary,
+                prominent: !profile.isRunning,
+                action: onToggleRun
+            )
+            .disabled(isBusy || store.isBatching)
+        }
+    }
+
+    private var statusPill: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(profile.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                .frame(width: 6, height: 6)
+            Text(profile.isRunning ? "运行中" : "已停止")
+                .font(.system(size: 10, weight: .medium))
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(
+            Capsule()
+                .fill(profile.isRunning ? Color.green.opacity(0.12) : Color.primary.opacity(0.05))
+        )
+        .foregroundStyle(profile.isRunning ? Color.green : Color.secondary)
     }
 }
 

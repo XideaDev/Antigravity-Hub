@@ -45,6 +45,7 @@ final class ProfileStore: ObservableObject {
 
     var runningCount: Int { profiles.filter(\.isRunning).count }
     var totalCount: Int { profiles.count }
+    var stoppedCount: Int { max(0, totalCount - runningCount) }
     var antigravityMissing: Bool { ProfileEngine.antigravityAppURL == nil }
 
     var statusSummary: String {
