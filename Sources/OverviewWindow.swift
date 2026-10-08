@@ -175,7 +175,7 @@ struct OverviewView: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
-                    Text("v0.2.0")
+                    Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.3.0")")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.accentColor)
                         .padding(.horizontal, 6)
@@ -527,13 +527,16 @@ struct ProfileCard: View {
     private var isBusy: Bool { store.busy.contains(profile.name) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             cardHeader
+            Spacer().frame(height: 9)
             accountSection
+            Spacer(minLength: 8)
             cardFooter
         }
         .padding(13)
-        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .frame(maxWidth: .infinity)
+        .frame(height: 164)
         .background(cardBackground)
         .overlay(cardBorder)
         .shadow(
