@@ -88,6 +88,39 @@ struct SoftButton: View {
     }
 }
 
+/// Icon-only toolbar chip for the expanded profile drawer.
+///
+/// The label is dropped on purpose. Five labelled chips across a 348pt panel
+/// leave each roughly 60pt wide, which truncates *every one* of them to an
+/// ellipsis — the row ends up reading as five identical grey pills. An SF Symbol
+/// plus a tooltip is what macOS toolbars have always done, and it buys enough
+/// width back that the destructive action can sit apart from the rest.
+struct IconChip: View {
+    let systemImage: String
+    let help: String
+    var tint: Color?
+    var action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 30, height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(hovering ? Color.primary.opacity(0.11) : Color.primary.opacity(0.05))
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(tint ?? Color.secondary)
+        .help(help)
+        .onHover { hovering = $0 }
+    }
+}
+
 /// Header glyph button: a 28×28pt hit target, which is the whole point —
 /// the previous 11px glyphs had no clickable area and looked like decoration.
 struct HeaderIconButton: View {
@@ -575,24 +608,26 @@ struct ProfileRow: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: 6) {
-                    SoftButton(title: "日志", systemImage: "doc.text", action: onShowLogs)
-                    SoftButton(title: "Finder", systemImage: "folder") {
+                HStack(spacing: 5) {
+                    IconChip(systemImage: "doc.text", help: "查看日志", action: onShowLogs)
+                    IconChip(systemImage: "folder", help: "在 Finder 中显示沙箱") {
                         NSWorkspace.shared.selectFile(
                             nil,
                             inFileViewerRootedAtPath: profile.directory.path
                         )
                     }
                     if profile.hasAccount {
-                        SoftButton(title: "复制账号", systemImage: "doc.on.doc") {
+                        IconChip(systemImage: "doc.on.doc", help: "复制账号：\(profile.displayAccount)") {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(profile.displayAccount, forType: .string)
                             store.showNotice("已复制账号")
                         }
                     }
-                    SoftButton(title: "编辑", systemImage: "pencil", action: onEdit)
+                    IconChip(systemImage: "pencil", help: "编辑分身", action: onEdit)
+
                     Spacer(minLength: 4)
-                    SoftButton(title: "删除", systemImage: "trash", tint: .red) {
+
+                    IconChip(systemImage: "trash", help: "删除分身", tint: .red) {
                         confirmingDelete = true
                     }
                 }
