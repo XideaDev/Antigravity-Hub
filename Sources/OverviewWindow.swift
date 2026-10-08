@@ -69,6 +69,13 @@ final class OverviewWindowController {
         window.contentMinSize = NSSize(width: 720, height: 460)
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("AntigravityHubOverview")
+
+        // Attach an NSToolbar with unified style so macOS automatically expands
+        // the titlebar to 52pt and centers the traffic light buttons vertically.
+        let toolbar = NSToolbar(identifier: "OverviewToolbar")
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
+
         window.contentView = hosting
         window.center()
         self.window = window
@@ -141,6 +148,7 @@ struct OverviewView: View {
                 }
             }
         }
+        .ignoresSafeArea()
         .frame(minWidth: 720, minHeight: 460)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -158,28 +166,29 @@ struct OverviewView: View {
     // MARK: - Toolbar
 
     private var toolbar: some View {
-        HStack(spacing: 8) {
-            // Fixed clearance for window traffic lights (red, yellow, green buttons)
+        HStack(spacing: 10) {
+            // Clearance for window traffic lights (red, yellow, green buttons) in unified titlebar
             Color.clear
-                .frame(width: 56, height: 1)
+                .frame(width: 74, height: 1)
 
-            // Brand mark
+            // Brand mark (Icon + Title, strictly single-line and vertically centered)
             HStack(spacing: 8) {
                 if let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap({ NSImage(contentsOf: $0) }) ?? NSImage(named: NSImage.applicationIconName) {
                     Image(nsImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 32, height: 32)
-                        .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
+                        .frame(width: 28, height: 28)
+                        .shadow(color: .black.opacity(0.16), radius: 2, y: 1)
                 }
                 Text("Antigravity Hub")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
             }
-            .padding(.trailing, 2)
+            .fixedSize()
 
             Divider()
-                .frame(height: 14)
+                .frame(height: 16)
                 .padding(.horizontal, 2)
 
             // Search Bar
@@ -190,7 +199,7 @@ struct OverviewView: View {
                 TextField("搜索分身、账号或备注...", text: $query)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
-                    .frame(width: 170)
+                    .lineLimit(1)
                 if !query.isEmpty {
                     Button {
                         query = ""
@@ -203,15 +212,17 @@ struct OverviewView: View {
                 }
             }
             .padding(.horizontal, 8)
-            .frame(height: 25)
+            .frame(minWidth: 130, idealWidth: 190, maxWidth: 260)
+            .frame(height: 28)
             .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.05)))
 
             Spacer(minLength: 8)
 
             privacyToggle
+                .fixedSize()
 
             Divider()
-                .frame(height: 14)
+                .frame(height: 16)
                 .padding(.horizontal, 2)
 
             SoftButton(title: "新建分身", systemImage: "plus", prominent: true) {
@@ -219,10 +230,11 @@ struct OverviewView: View {
                     drawer = (drawer == .create) ? nil : .create
                 }
             }
+            .fixedSize()
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 16)
+        .frame(height: 52)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var privacyToggle: some View {
@@ -239,7 +251,7 @@ struct OverviewView: View {
             }
             .foregroundStyle(maskAccounts ? Color.accentColor : Color.secondary)
             .padding(.horizontal, 8)
-            .frame(height: 24)
+            .frame(height: 26)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(maskAccounts ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.05))
@@ -276,8 +288,8 @@ struct OverviewView: View {
             }
             .fixedSize()
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 7)
         .background(Color(nsColor: .windowBackgroundColor).opacity(0.5))
     }
 

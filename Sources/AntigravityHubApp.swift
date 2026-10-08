@@ -79,6 +79,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.logLayout(label: "route=\(route)")
                 }
             }
+
+        if CommandLine.arguments.contains("--overview") {
+            DispatchQueue.main.async { [weak self] in
+                self?.openOverview()
+            }
+        }
     }
 
     /// Accessory app: closing the panel must not quit Antigravity Hub.
