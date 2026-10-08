@@ -133,6 +133,7 @@ if [ -f "$KEY_FILE" ] && [ -x "$ROOT/scripts/sparkle/generate_appcast" ]; then
     echo "==> Generating Sparkle appcast.xml"
     DOWNLOAD_PREFIX="${DOWNLOAD_PREFIX:-https://github.com/XideaDev/Antigravity-Hub/releases/download/v$VERSION/}"
     "$ROOT/scripts/sparkle/generate_appcast" \
+        --maximum-deltas 0 \
         --ed-key-file "$KEY_FILE" \
         --download-url-prefix "$DOWNLOAD_PREFIX" \
         -o "$ROOT/appcast.xml" \
