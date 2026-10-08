@@ -3,3 +3,18 @@ dist/
 *.o
 *.dSYM
 .DS_Store
+
+# Secrets & Private Keys (never commit)
+*.key
+*.p8
+*.p12
+*.pem
+*.cer
+*.crt
+*.provisionprofile
+
+# Editor & OS files
+.vscode/
+.idea/
+*.swp
+*~
