@@ -39,6 +39,7 @@ struct ProfileMetadata: Codable, Hashable {
     var createdAt: String?
     var version: Int?
     var lastAppVersion: String?
+    var enableCLI: Bool?
 
     enum CodingKeys: String, CodingKey {
         case name, description, version
@@ -46,6 +47,7 @@ struct ProfileMetadata: Codable, Hashable {
         case inheritedFrom = "inherited_from"
         case createdAt = "created_at"
         case lastAppVersion = "last_app_version"
+        case enableCLI = "enable_cli"
     }
 }
 
@@ -93,6 +95,11 @@ struct ProfileSnapshot: Identifiable, Hashable {
     var isExpired: Bool { account?.isExpired ?? false }
     var isExpiring: Bool { account?.isExpiringSoon ?? false }
     var pidLabel: String { pid.map { "PID \($0)" } ?? "—" }
+    var cliCommand: String { "agy-\(name)" }
+    var cliScriptPath: String { directory.appendingPathComponent("run-agy.sh").path }
+    var hasCLI: Bool {
+        FileManager.default.fileExists(atPath: directory.appendingPathComponent("run-agy.sh").path)
+    }
 
     func maskedAccount(enabled: Bool = true) -> String {
         guard enabled, let email = account?.email else { return displayAccount }

@@ -192,3 +192,14 @@
 "field_dir_label" = "目录";
 "field_desc_label" = "描述";
 "field_source_label" = "来源";
+"field_cli_label" = "CLI";
+
+// MARK: - CLI & Multi-Agent
+"enable_cli" = "创建独立 CLI 命令与多 Agent 支持";
+"enable_cli_hint" = "生成独立的终端命令 ~/.local/bin/agy-<name>，并自动注册到 AionUi 等多 Agent 平台";
+"copy_cli_cmd" = "复制 CLI 命令";
+"cli_cmd_copied" = "已复制 CLI 命令";
+"open_cli_in_terminal" = "在终端中运行";
+"sync_to_aionui" = "同步到 AionUi";
+"synced_to_aionui" = "已同步到 AionUi";
+

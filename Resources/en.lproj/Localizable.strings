@@ -192,3 +192,14 @@
 "field_dir_label" = "Directory";
 "field_desc_label" = "Description";
 "field_source_label" = "Source";
+"field_cli_label" = "CLI";
+
+// MARK: - CLI & Multi-Agent
+"enable_cli" = "Create Isolated CLI & Multi-Agent Support";
+"enable_cli_hint" = "Generates isolated command ~/.local/bin/agy-<name> and registers with AionUi & multi-agent platforms";
+"copy_cli_cmd" = "Copy CLI Command";
+"cli_cmd_copied" = "CLI command copied to clipboard";
+"open_cli_in_terminal" = "Run in Terminal";
+"sync_to_aionui" = "Sync to AionUi";
+"synced_to_aionui" = "Synced to AionUi";
+

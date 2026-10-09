@@ -19,14 +19,14 @@ VOLUME_NAME="Antigravity Hub"
 if [ "${1:-}" = "--app" ] && [ -n "${2:-}" ]; then
     DEST_APP="$2"
     shift 2
-elif [ ! -d "$DEST_APP" ]; then
-    if [ -d "$ROOT/build/AntigravityHub.app" ]; then
-        DEST_APP="$ROOT/build/AntigravityHub.app"
-    else
-        echo "==> Building app first..."
-        "$ROOT/build.sh"
-        DEST_APP="$ROOT/build/AntigravityHub.app"
-    fi
+elif [ -d "$ROOT/build/AntigravityHub.app" ]; then
+    DEST_APP="$ROOT/build/AntigravityHub.app"
+elif [ -d "$DIST/AntigravityHub.app" ]; then
+    DEST_APP="$DIST/AntigravityHub.app"
+else
+    echo "==> Building app first..."
+    "$ROOT/build.sh"
+    DEST_APP="$ROOT/build/AntigravityHub.app"
 fi
 
 if [ ! -f "$BACKGROUND" ]; then

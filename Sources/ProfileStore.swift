@@ -57,6 +57,9 @@ final class ProfileStore: ObservableObject {
     // MARK: - Lifecycle
 
     func startPolling() {
+        Task.detached(priority: .utility) {
+            ProfileEngine.ensureCLIScriptsReconciled()
+        }
         refresh()
         schedulePollTimer()
     }

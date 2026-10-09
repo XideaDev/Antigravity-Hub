@@ -264,6 +264,8 @@ enum ProfileEngine {
         }
         try FileManager.default.removeItem(at: profile.directory)
         removeShortcut(for: profile.name)
+        removeCLIScript(for: profile.name)
+        removeFromAionUi(named: profile.name)
     }
 
     // MARK: - Creating
@@ -274,6 +276,7 @@ enum ProfileEngine {
         var symlinkPolicy: SymlinkPolicy = .full
         var inheritHostConfig = false
         var launchAfter = false
+        var enableCLI = true
     }
 
     enum SymlinkPolicy: String, CaseIterable, Identifiable {
@@ -336,7 +339,8 @@ enum ProfileEngine {
             inheritedFrom: request.inheritHostConfig ? "host" : nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
             version: 1,
-            lastAppVersion: antigravityVersion()
+            lastAppVersion: antigravityVersion(),
+            enableCLI: request.enableCLI
         )
         try writeMetadata(metadata, to: profile)
 
@@ -345,6 +349,10 @@ enum ProfileEngine {
             inheritHostConfiguration(into: profile)
         }
         createShortcut(for: profile)
+        if request.enableCLI {
+            createCLIScript(for: profile)
+            syncToAionUi(for: profile)
+        }
 
         if request.launchAfter {
             try await launch(profile)
@@ -392,6 +400,8 @@ enum ProfileEngine {
             let destination = root.appendingPathComponent(trimmedName)
             try FileManager.default.moveItem(at: profile.directory, to: destination)
             removeShortcut(for: profile.name)
+            removeCLIScript(for: profile.name)
+            removeFromAionUi(named: profile.name)
             target = Profile(name: trimmedName, directory: destination)
         }
 
@@ -405,6 +415,10 @@ enum ProfileEngine {
 
         try applySymlinkPolicy(edits.symlinkPolicy, to: target)
         createShortcut(for: target)
+        if metadata.enableCLI != false {
+            createCLIScript(for: target)
+            syncToAionUi(for: target)
+        }
         return target
     }
 
@@ -558,6 +572,181 @@ enum ProfileEngine {
     static func removeShortcut(for name: String) {
         let bundle = applicationsDirectory.appendingPathComponent("Antigravity (\(name)).app")
         try? FileManager.default.removeItem(at: bundle)
+    }
+
+    // MARK: - CLI & Multi-Agent Integration
+
+    /// Directory where user-facing CLI symlinks live (~/.local/bin)
+    static var localBinDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".local")
+            .appendingPathComponent("bin")
+    }
+
+    /// URL to AionUi database if AionUi is installed
+    static var aionUiDatabaseURL: URL? {
+        let fm = FileManager.default
+        let path1 = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/AionUi/aionui/aionui-backend.db")
+        if fm.fileExists(atPath: path1.path) { return path1 }
+        let path2 = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent(".aionui/aionui-backend.db")
+        if fm.fileExists(atPath: path2.path) { return path2 }
+        return nil
+    }
+
+    static func cliScriptURL(for profile: Profile) -> URL {
+        profile.directory.appendingPathComponent("run-agy.sh")
+    }
+
+    static func cliSymlinkURL(for profile: Profile) -> URL {
+        localBinDirectory.appendingPathComponent("agy-\(profile.name)")
+    }
+
+    static func cliCommand(for profile: Profile) -> String {
+        "agy-\(profile.name)"
+    }
+
+    /// Generates `run-agy.sh` in the sandbox and creates a symlink `~/.local/bin/agy-<name>`.
+    ///
+    /// Ensures:
+    /// 1. `HOME` points to the profile's isolated `home/` directory so tokens and Gemini state are isolated.
+    /// 2. `SSH_CONNECTION` is explicitly unset so `agy` runs standard local OAuth callback listener
+    ///    instead of deprecated out-of-band flow that causes OAuth 400 invalid_request error.
+    /// 3. `/usr/local/bin` and `/opt/homebrew/bin` are in `PATH`.
+    static func createCLIScript(for profile: Profile) {
+        let fm = FileManager.default
+        let scriptURL = cliScriptURL(for: profile)
+        let symlinkURL = cliSymlinkURL(for: profile)
+
+        let script = """
+        #!/bin/sh
+        export HOME="\(profile.homeDirectory.path)"
+        unset SSH_CONNECTION
+        export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+        exec agy "$@"
+        """
+
+        try? script.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        // Ensure ~/.local/bin exists
+        try? fm.createDirectory(at: localBinDirectory, withIntermediateDirectories: true)
+
+        // Create or update symlink
+        if fm.fileExists(atPath: symlinkURL.path) || (try? fm.destinationOfSymbolicLink(atPath: symlinkURL.path)) != nil {
+            try? fm.removeItem(at: symlinkURL)
+        }
+        try? fm.createSymbolicLink(at: symlinkURL, withDestinationURL: scriptURL)
+    }
+
+    static func removeCLIScript(for name: String) {
+        let symlinkURL = localBinDirectory.appendingPathComponent("agy-\(name)")
+        try? FileManager.default.removeItem(at: symlinkURL)
+    }
+
+    /// Upserts this profile into AionUi's SQLite database if AionUi is present.
+    static func syncToAionUi(for profile: Profile) {
+        guard let dbURL = aionUiDatabaseURL else { return }
+        let agentId = "agy_\(profile.name)"
+        let scriptPath = cliScriptURL(for: profile).path
+        let displayName = "Antigravity (\(profile.name))"
+        let desc = metadata(of: profile).description ?? "Antigravity Profile: \(profile.name)"
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+
+        let safeDesc = desc.replacingOccurrences(of: "'", with: "''")
+        let safeName = displayName.replacingOccurrences(of: "'", with: "''")
+        let safeScript = scriptPath.replacingOccurrences(of: "'", with: "''")
+
+        let sql = """
+        INSERT INTO agent_metadata (
+            id, agent_id, icon, name, description, backend, agent_type, agent_source, agent_source_info,
+            enabled, command, args, env, native_skills_dirs, behavior_policy, yolo_id,
+            config_options, available_modes, available_models, available_commands, sort_order,
+            command_override, created_at, updated_at, skill_delivery
+        )
+        SELECT 
+            '\(agentId)', '\(agentId)', icon, '\(safeName)', '\(safeDesc)', backend, agent_type, agent_source, agent_source_info,
+            1, '\(safeScript)', args, env, native_skills_dirs, behavior_policy, yolo_id,
+            config_options, available_modes, available_models, available_commands, 3141,
+            '\(safeScript)', \(now), \(now), skill_delivery
+        FROM agent_metadata
+        WHERE backend = 'antigravity' AND agent_id NOT LIKE 'agy_%'
+        LIMIT 1
+        ON CONFLICT(agent_id) DO UPDATE SET
+            name = excluded.name,
+            command = excluded.command,
+            command_override = excluded.command_override,
+            enabled = 1,
+            updated_at = excluded.updated_at;
+
+        INSERT INTO assistant_definitions (
+            id, user_id, assistant_id, source, owner_type, source_ref, name, name_i18n,
+            description, description_i18n, avatar_type, avatar_value, agent_id,
+            rule_resource_type, rule_resource_ref, recommended_prompts, recommended_prompts_i18n,
+            default_model_mode, default_permission_mode, default_thought_level_mode,
+            default_skills_mode, default_skill_ids, custom_skill_names, default_disabled_builtin_skill_ids,
+            default_mcps_mode, default_mcp_ids, created_at, updated_at
+        )
+        SELECT
+            'asstdef_\(agentId)', user_id, 'bare:\(agentId)', 'generated', 'system', '\(agentId)', '\(safeName)', '{}',
+            '\(safeDesc)', '{}', 'emoji', avatar_value, '\(agentId)',
+            rule_resource_type, 'bare:\(agentId)', recommended_prompts, recommended_prompts_i18n,
+            default_model_mode, default_permission_mode, default_thought_level_mode,
+            default_skills_mode, default_skill_ids, custom_skill_names, default_disabled_builtin_skill_ids,
+            default_mcps_mode, default_mcp_ids, \(now), \(now)
+        FROM assistant_definitions
+        WHERE agent_id NOT LIKE 'agy_%' AND assistant_id LIKE 'bare:%'
+        LIMIT 1
+        ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            updated_at = excluded.updated_at;
+        """
+
+        _ = runTool("/usr/bin/sqlite3", [dbURL.path, sql])
+    }
+
+    static func removeFromAionUi(named name: String) {
+        guard let dbURL = aionUiDatabaseURL else { return }
+        let agentId = "agy_\(name)"
+        let sql = """
+        DELETE FROM agent_metadata WHERE agent_id = '\(agentId)';
+        DELETE FROM assistant_definitions WHERE agent_id = '\(agentId)';
+        """
+        _ = runTool("/usr/bin/sqlite3", [dbURL.path, sql])
+    }
+
+    /// Spawns macOS Terminal with the given command line.
+    static func openTerminal(with command: String) {
+        let escaped = command.replacingOccurrences(of: "\"", with: "\\\"")
+        let script = """
+        tell application "Terminal"
+            do script "\(escaped)"
+            activate
+        end tell
+        """
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        try? process.run()
+    }
+
+    private static var hasReconciledCLI = false
+
+    /// Reconciles CLI wrappers and AionUi registrations for all existing profiles.
+    /// Self-healing: ensures profiles created previously also have CLI scripts and symlinks.
+    static func ensureCLIScriptsReconciled() {
+        guard !hasReconciledCLI else { return }
+        hasReconciledCLI = true
+        for profile in allProfiles() {
+            let scriptURL = cliScriptURL(for: profile)
+            let symlinkURL = cliSymlinkURL(for: profile)
+            if !FileManager.default.fileExists(atPath: scriptURL.path) ||
+               !FileManager.default.fileExists(atPath: symlinkURL.path) {
+                createCLIScript(for: profile)
+            }
+            syncToAionUi(for: profile)
+        }
     }
 
     // MARK: - Logs

@@ -146,6 +146,12 @@ switching windows. Nothing is shared, so nothing can collide.
 
 ## Changelog
 
+### 0.4.0 — CLI Profile Isolation & Multi-Agent Integration
+- **Isolated CLI wrappers (`~/.local/bin/agy-<name>`)**: Each profile now generates its own isolated CLI runner with private `HOME`, sanitized `SSH_CONNECTION` (eliminating OAuth 400 OOB errors), and direct terminal integration.
+- **AionUi & Multi-Agent native auto-sync**: Automatically registers and maintains isolated profile agents into AionUi backend database (`agent_metadata` and `assistant_definitions`) with zero ACP timeout.
+- **Run in Terminal & Quick Actions**: Launch isolated agents in Terminal with one click from card context menus, detail pane, and menu bar drawer chips.
+- **Create Profile toggle**: Added "Create Isolated CLI & Multi-Agent Support" toggle with live path preview (`~/.local/bin/agy-<name>`).
+
 ### 0.3.0 — Edit profiles
 - **Rename** any profile — the sandbox directory and its Spotlight shortcut
   follow. The OAuth token, settings and config never reference the profile's

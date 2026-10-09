@@ -9,6 +9,7 @@ struct CreateProfileView: View {
     @State private var name = ""
     @State private var note = ""
     @State private var inheritConfig = false
+    @State private var enableCLI = true
     @State private var links: ProfileEngine.SymlinkPolicy = .full
     @State private var launchAfter = false
 
@@ -31,6 +32,7 @@ struct CreateProfileView: View {
                     nameField
                     noteField
                     inheritanceSection
+                    cliSection
                     linksSection
 
                     if let error = store.createError {
@@ -96,6 +98,28 @@ struct CreateProfileView: View {
                       systemImage: "link")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
+                    .padding(.leading, 18)
+            }
+        }
+    }
+
+    private var cliSection: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Toggle(isOn: $enableCLI) {
+                Text("enable_cli".localized).font(.system(size: 13))
+            }
+            .toggleStyle(.checkbox)
+            .disabled(store.isCreating)
+
+            Text("enable_cli_hint".localized)
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if enableCLI {
+                Label("~/.local/bin/agy-\(name.isEmpty ? "name" : name)", systemImage: "terminal")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
                     .padding(.leading, 18)
             }
         }
@@ -184,7 +208,8 @@ struct CreateProfileView: View {
             description: note.trimmingCharacters(in: .whitespaces),
             symlinkPolicy: links,
             inheritHostConfig: inheritConfig,
-            launchAfter: launchAfter
+            launchAfter: launchAfter,
+            enableCLI: enableCLI
         )
         Task {
             let ok = await store.create(request)

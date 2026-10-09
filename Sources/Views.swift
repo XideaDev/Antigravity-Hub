@@ -583,6 +583,40 @@ struct ProfileRow: View {
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 6)
+        .contextMenu {
+            Button {
+                ProfileEngine.openTerminal(with: profile.cliCommand)
+            } label: {
+                Label("open_cli_in_terminal".localized, systemImage: "terminal")
+            }
+
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(profile.cliCommand, forType: .string)
+                store.showNotice("cli_cmd_copied".localized)
+            } label: {
+                Label("copy_cli_cmd".localized, systemImage: "doc.on.doc")
+            }
+
+            if ProfileEngine.aionUiDatabaseURL != nil {
+                Button {
+                    if let target = ProfileEngine.profile(named: profile.name) {
+                        ProfileEngine.syncToAionUi(for: target)
+                        store.showNotice("synced_to_aionui".localized)
+                    }
+                } label: {
+                    Label("sync_to_aionui".localized, systemImage: "arrow.triangle.2.circlepath")
+                }
+            }
+
+            Divider()
+
+            Button {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: profile.directory.path)
+            } label: {
+                Label("open_in_finder".localized, systemImage: "folder")
+            }
+        }
     }
 
     private var primaryButton: some View {
@@ -625,6 +659,9 @@ struct ProfileRow: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 5) {
+                    IconChip(systemImage: "terminal", help: "open_cli_in_terminal".localized) {
+                        ProfileEngine.openTerminal(with: profile.cliCommand)
+                    }
                     IconChip(systemImage: "doc.text", help: "view_logs".localized, action: onShowLogs)
                     IconChip(systemImage: "folder", help: "reveal_in_finder".localized) {
                         NSWorkspace.shared.selectFile(

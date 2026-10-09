@@ -175,7 +175,7 @@ struct OverviewView: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
-                    Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.3.0")")
+                    Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.0")")
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.accentColor)
                         .padding(.horizontal, 6)
@@ -547,6 +547,58 @@ struct ProfileCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 12))
         .onTapGesture(perform: onSelect)
         .onHover { hovering = $0 }
+        .contextMenu {
+            Button {
+                ProfileEngine.openTerminal(with: profile.cliCommand)
+            } label: {
+                Label("open_cli_in_terminal".localized, systemImage: "terminal")
+            }
+
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(profile.cliCommand, forType: .string)
+                store.showNotice("cli_cmd_copied".localized)
+            } label: {
+                Label("copy_cli_cmd".localized, systemImage: "doc.on.doc")
+            }
+
+            if ProfileEngine.aionUiDatabaseURL != nil {
+                Button {
+                    if let target = ProfileEngine.profile(named: profile.name) {
+                        ProfileEngine.syncToAionUi(for: target)
+                        store.showNotice("synced_to_aionui".localized)
+                    }
+                } label: {
+                    Label("sync_to_aionui".localized, systemImage: "arrow.triangle.2.circlepath")
+                }
+            }
+
+            Divider()
+
+            if profile.hasAccount {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+                    store.showNotice("account_copied".localized)
+                } label: {
+                    Label("copy_account".localized, systemImage: "person.crop.circle")
+                }
+            }
+
+            Button {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: profile.directory.path)
+            } label: {
+                Label("open_in_finder".localized, systemImage: "folder")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                store.delete(profile)
+            } label: {
+                Label("delete_profile".localized, systemImage: "trash")
+            }
+        }
     }
 
     private var cardBackground: some View {
@@ -793,6 +845,7 @@ struct ProfileDetailPane: View {
         VStack(alignment: .leading, spacing: 5) {
             row("field_account_label".localized, shown.maskedAccount(enabled: maskAccounts), tint: shown.hasAccount ? nil : .orange)
             row("field_status_label".localized, shown.isRunning ? "running".localized : "stopped".localized)
+            cliRow
             row("field_size_label".localized, shown.displaySize)
             row("field_dir_label".localized, shown.directory.path)
             if let note = shown.note, !note.isEmpty {
@@ -804,6 +857,59 @@ struct ProfileDetailPane: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    private var cliRow: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text("field_cli_label".localized)
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .frame(width: 42, alignment: .leading)
+            Text(shown.cliCommand)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color.primary)
+                .lineLimit(1)
+                .textSelection(.enabled)
+
+            Spacer(minLength: 4)
+
+            Button {
+                ProfileEngine.openTerminal(with: shown.cliCommand)
+            } label: {
+                Image(systemName: "terminal")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("open_cli_in_terminal".localized)
+
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(shown.cliCommand, forType: .string)
+                store.showNotice("cli_cmd_copied".localized)
+            } label: {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("copy_cli_cmd".localized)
+
+            if ProfileEngine.aionUiDatabaseURL != nil {
+                Button {
+                    if let target = ProfileEngine.profile(named: shown.name) {
+                        ProfileEngine.syncToAionUi(for: target)
+                        store.showNotice("synced_to_aionui".localized)
+                    }
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("sync_to_aionui".localized)
+            }
+        }
     }
 
     private func row(_ label: String, _ value: String, tint: Color? = nil) -> some View {

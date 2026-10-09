@@ -127,6 +127,12 @@
 
 ## 更新日志
 
+### 0.4.0 — 独立 CLI 隔离分身与多 Agent 平台集成
+- **独立 CLI 隔离命令（`~/.local/bin/agy-<name>`）**：为每个分身自动生成独立的终端运行脚本与全局符号链接，隔离独立 `HOME` 与 Gemini 状态，并自动修复 Google OAuth 400 授权失效（清除 `SSH_CONNECTION` 强制本地 Web 回调）。
+- **AionUi 与多 Agent 平台自动同步**：自动检测并将分身注册到 AionUi 本地 SQLite 数据库（`agent_metadata` 与 `assistant_definitions`），解决 ACP 进程超时与检测不到分身的问题，支持多活多 Agent 并发运行。
+- **一键终端运行与快捷操作**：在总览卡片右键菜单、详情侧栏与菜单栏抽屉中均可一键在 Terminal 中启动隔离分身，或一键复制 `agy-<name>` 命令。
+- **新建分身增加 CLI 选项**：新建分身界面提供「创建独立 CLI 命令与多 Agent 支持」开关，并实时预览全局命令路径。
+
 ### 0.3.0 — 编辑分身
 - **改名**：可对任意分身重命名，沙箱目录与 Spotlight 快捷方式同步更新。
   实测验证：OAuth token、settings、config 都不引用分身自身的绝对路径，
