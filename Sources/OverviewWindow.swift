@@ -578,6 +578,19 @@ struct ProfileCard: View {
             if profile.hasAccount {
                 Button {
                     NSPasteboard.general.clearContents()
+                    if let json = ProfileEngine.generateCLIProxyJSON(for: profile) {
+                        NSPasteboard.general.setString(json, forType: .string)
+                        store.showNotice("cliproxy_json_copied".localized)
+                    } else {
+                        NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+                        store.showNotice("account_copied".localized)
+                    }
+                } label: {
+                    Label("copy_cliproxy_json".localized, systemImage: "key.horizontal")
+                }
+
+                Button {
+                    NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
                     store.showNotice("account_copied".localized)
                 } label: {
@@ -696,7 +709,13 @@ struct ProfileCard: View {
     private var copyButton: some View {
         Button {
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+            if let json = ProfileEngine.generateCLIProxyJSON(for: profile) {
+                NSPasteboard.general.setString(json, forType: .string)
+                store.showNotice("cliproxy_json_copied".localized)
+            } else {
+                NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+                store.showNotice("account_copied".localized)
+            }
             copiedNotice = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copiedNotice = false }
         } label: {
@@ -711,7 +730,7 @@ struct ProfileCard: View {
             .foregroundStyle(copiedNotice ? Color.green : Color.secondary.opacity(0.8))
         }
         .buttonStyle(.plain)
-        .help("copy_full_account".localized)
+        .help("copy_cliproxy_json_hint".localized)
     }
 
     private var cardFooter: some View {
@@ -843,7 +862,7 @@ struct ProfileDetailPane: View {
 
     private var metadata: some View {
         VStack(alignment: .leading, spacing: 5) {
-            row("field_account_label".localized, shown.maskedAccount(enabled: maskAccounts), tint: shown.hasAccount ? nil : .orange)
+            accountRow
             row("field_status_label".localized, shown.isRunning ? "running".localized : "stopped".localized)
             cliRow
             row("field_size_label".localized, shown.displaySize)
@@ -857,6 +876,54 @@ struct ProfileDetailPane: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    private var accountRow: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text("field_account_label".localized)
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .frame(width: 42, alignment: .leading)
+            Text(shown.maskedAccount(enabled: maskAccounts))
+                .font(.system(size: 11))
+                .foregroundStyle(shown.hasAccount ? Color.secondary : Color.orange)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+
+            Spacer(minLength: 4)
+
+            if shown.hasAccount {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(shown.account?.email ?? shown.displayAccount, forType: .string)
+                    store.showNotice("account_copied".localized)
+                } label: {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("copy_account".localized)
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    if let json = ProfileEngine.generateCLIProxyJSON(for: shown) {
+                        NSPasteboard.general.setString(json, forType: .string)
+                        store.showNotice("cliproxy_json_copied".localized)
+                    } else {
+                        NSPasteboard.general.setString(shown.account?.email ?? shown.displayAccount, forType: .string)
+                        store.showNotice("account_copied".localized)
+                    }
+                } label: {
+                    Image(systemName: "key.horizontal")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("copy_cliproxy_json_hint".localized)
+            }
+        }
     }
 
     private var cliRow: some View {
@@ -964,10 +1031,15 @@ struct ProfileDetailPane: View {
                 )
             }
             if profile.hasAccount {
-                SoftButton(title: "copy_account".localized, systemImage: "doc.on.doc") {
+                SoftButton(title: "copy_cliproxy_json".localized, systemImage: "key.horizontal") {
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
-                    store.showNotice("account_copied".localized)
+                    if let json = ProfileEngine.generateCLIProxyJSON(for: profile) {
+                        NSPasteboard.general.setString(json, forType: .string)
+                        store.showNotice("cliproxy_json_copied".localized)
+                    } else {
+                        NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+                        store.showNotice("account_copied".localized)
+                    }
                 }
             }
             Spacer(minLength: 0)

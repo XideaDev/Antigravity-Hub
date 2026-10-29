@@ -24,6 +24,8 @@ struct SettingsPane: View {
     let onOpenAbout: () -> Void
 
     @AppStorage(PrefKey.maskAccounts) private var maskAccounts: Bool = false
+    @AppStorage(PrefKey.enableCLIProxyDedicatedProxy) private var enableDedicatedProxy: Bool = false
+    @AppStorage(PrefKey.cliProxyDedicatedProxyURL) private var dedicatedProxyURL: String = ""
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var loginError: String?
     @State private var cadence = RefreshCadence.current
@@ -69,6 +71,29 @@ struct SettingsPane: View {
                     .font(.system(size: 13))
             }
             hint("account_masking_hint".localized)
+
+            card {
+                Toggle("cliproxy_proxy_setting".localized, isOn: $enableDedicatedProxy)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .font(.system(size: 13))
+            }
+            hint("cliproxy_proxy_hint".localized)
+
+            if enableDedicatedProxy {
+                card {
+                    Text("dedicated_proxy_url".localized).font(.system(size: 13))
+                    Spacer(minLength: 6)
+                    TextField("proxy_url_placeholder".localized, text: $dedicatedProxyURL)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12, design: .monospaced))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.04)))
+                        .frame(width: 175)
+                }
+                hint("dedicated_proxy_url_hint".localized)
+            }
 
             card {
                 Text("language".localized).font(.system(size: 13))

@@ -8,6 +8,8 @@ enum PrefKey {
     static let refreshInterval = "RefreshInterval"
     static let maskAccounts = "MaskAccounts"
     static let language = "AppLanguage"
+    static let enableCLIProxyDedicatedProxy = "EnableCLIProxyDedicatedProxy"
+    static let cliProxyDedicatedProxyURL = "CLIProxyDedicatedProxyURL"
 }
 
 // MARK: - Menu bar glyph

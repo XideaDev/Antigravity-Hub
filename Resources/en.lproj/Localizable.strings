@@ -203,3 +203,13 @@
 "sync_to_aionui" = "Sync to AionUi";
 "synced_to_aionui" = "Synced to AionUi";
 
+// MARK: - CLIProxyAPI & Export
+"copy_cliproxy_json" = "Copy CLIProxy Credential";
+"copy_cliproxy_json_hint" = "Click to copy CLIProxyAPI credential JSON";
+"cliproxy_json_copied" = "CLIProxy JSON copied to clipboard";
+"cliproxy_proxy_setting" = "Include Dedicated Proxy in Export";
+"cliproxy_proxy_hint" = "Exported credential includes proxy_url field for proxy routing";
+"dedicated_proxy_url" = "Dedicated Proxy URL";
+"proxy_url_placeholder" = "socks5://127.0.0.1:10808";
+"dedicated_proxy_url_hint" = "e.g. socks5://127.0.0.1:10808 or http://127.0.0.1:7890";
+

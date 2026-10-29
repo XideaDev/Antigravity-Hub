@@ -87,8 +87,14 @@ echo "==> Built $APP"
 
 case "${1:-}" in
 	--install)
-		DEST="$HOME/Applications/AntigravityHub.app"
-		mkdir -p "$HOME/Applications"
+		if [ -w "/Applications" ]; then
+			DEST="/Applications/Antigravity Hub.app"
+		else
+			DEST="$HOME/Applications/Antigravity Hub.app"
+			mkdir -p "$HOME/Applications"
+		fi
+		killall AntigravityHub 2>/dev/null || true
+		sleep 0.5
 		rm -rf "$DEST"
 		cp -R "$APP" "$DEST"
 		echo "==> Installed $DEST"

@@ -113,13 +113,14 @@ enum ProfileEngine {
 
     /// Reads the signed-in Google account out of the instance's OAuth token.
     ///
-    /// Two on-disk shapes exist and both must be understood:
+    /// Multiple on-disk shapes exist and all must be understood:
     ///
     /// * legacy bare JWT — the whole file is `header.payload.signature`;
-    /// * JSON envelope — current Antigravity writes
-    ///   `{"token": {...}, "auth_method": ..., "id_token": "<JWT>"}`, where the
+    /// * legacy JSON envelope — `{"token": {...}, "auth_method": ..., "id_token": "<JWT>"}`, where the
     ///   real JWT lives in `id_token`. Splitting the *raw file* on "." yields
     ///   garbage, which is why naive parsing reports "not signed in".
+    /// * current JSON envelope (Antigravity >=2.28) — `{"token": {...}, "auth_method": ..., "id_token_email": "<email>"}`,
+    ///   where the email is written directly to `id_token_email` and `id_token` is omitted.
     static func account(of profile: Profile) -> AccountInfo? {
         guard let raw = try? String(contentsOf: profile.tokenFile, encoding: .utf8) else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -128,6 +129,7 @@ enum ProfileEngine {
         var claims: [String: Any] = [:]
         var hasRefresh = false
         var expiry: Date?
+        var directEmail: String?
 
         if let data = trimmed.data(using: .utf8),
            let envelope = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
@@ -136,6 +138,11 @@ enum ProfileEngine {
             if let rawExpiry = inner["expiry"] as? String {
                 expiry = parseISO8601(rawExpiry)
             }
+            if let idTokenEmail = envelope["id_token_email"] as? String, !idTokenEmail.isEmpty {
+                directEmail = idTokenEmail
+            } else if let email = envelope["email"] as? String, !email.isEmpty {
+                directEmail = email
+            }
             if let idToken = envelope["id_token"] as? String {
                 claims = decodeJWTPayload(idToken)
             }
@@ -143,11 +150,82 @@ enum ProfileEngine {
             claims = decodeJWTPayload(trimmed)
         }
 
-        guard let email = claims["email"] as? String, !email.isEmpty else { return nil }
+        let resolvedEmail = directEmail ?? (claims["email"] as? String)
+        guard let email = resolvedEmail, !email.isEmpty else { return nil }
         if expiry == nil, let exp = claims["exp"] as? Double {
             expiry = Date(timeIntervalSince1970: exp)
         }
         return AccountInfo(email: email, expiresAt: expiry, hasRefreshToken: hasRefresh)
+    }
+
+    /// Generates standard CLIProxyAPI credential JSON for the profile snapshot.
+    /// Reads OAuth tokens (refresh_token, access_token), formats them into CLIProxyAPI schema,
+    /// and conditionally appends `proxy_url` if dedicated proxy is enabled in preferences.
+    static func generateCLIProxyJSON(for profile: ProfileSnapshot) -> String? {
+        let tokenFileURL = profile.directory
+            .appendingPathComponent("home/.gemini/jetski-standalone-oauth-token")
+        
+        var tokenData: Data?
+        if FileManager.default.fileExists(atPath: tokenFileURL.path) {
+            tokenData = try? Data(contentsOf: tokenFileURL)
+        } else if profile.inheritedFrom == "host" {
+            let hostTokenURL = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".gemini/jetski-standalone-oauth-token")
+            if FileManager.default.fileExists(atPath: hostTokenURL.path) {
+                tokenData = try? Data(contentsOf: hostTokenURL)
+            }
+        }
+        
+        guard let data = tokenData,
+              let envelope = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else {
+            return nil
+        }
+        
+        let tokenDict = envelope["token"] as? [String: Any] ?? [:]
+        guard let refreshToken = tokenDict["refresh_token"] as? String, !refreshToken.isEmpty else {
+            return nil
+        }
+        
+        let accessToken = tokenDict["access_token"] as? String ?? ""
+        
+        var email = profile.account?.email ?? ""
+        if email.isEmpty {
+            if let idTokenEmail = envelope["id_token_email"] as? String, !idTokenEmail.isEmpty {
+                email = idTokenEmail
+            } else if let directEmail = envelope["email"] as? String, !directEmail.isEmpty {
+                email = directEmail
+            } else if let idToken = envelope["id_token"] as? String {
+                let claims = decodeJWTPayload(idToken)
+                email = claims["email"] as? String ?? ""
+            }
+        }
+        
+        var result: [String: Any] = [
+            "type": "antigravity",
+            "email": email,
+            "refresh_token": refreshToken,
+            "project_id": "aicode-consumers"
+        ]
+        
+        if !accessToken.isEmpty {
+            result["access_token"] = accessToken
+        }
+        
+        let enableProxy = UserDefaults.standard.bool(forKey: PrefKey.enableCLIProxyDedicatedProxy)
+        let proxyURL = (UserDefaults.standard.string(forKey: PrefKey.cliProxyDedicatedProxyURL) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if enableProxy && !proxyURL.isEmpty {
+            result["proxy_url"] = proxyURL
+        }
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]),
+              let jsonString = String(data: jsonData, encoding: .utf8)
+        else {
+            return nil
+        }
+        
+        return jsonString
     }
 
     private static func decodeJWTPayload(_ jwt: String) -> [String: Any] {

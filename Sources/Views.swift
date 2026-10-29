@@ -611,6 +611,29 @@ struct ProfileRow: View {
 
             Divider()
 
+            if profile.hasAccount {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    if let json = ProfileEngine.generateCLIProxyJSON(for: profile) {
+                        NSPasteboard.general.setString(json, forType: .string)
+                        store.showNotice("cliproxy_json_copied".localized)
+                    } else {
+                        NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+                        store.showNotice("account_copied".localized)
+                    }
+                } label: {
+                    Label("copy_cliproxy_json".localized, systemImage: "key.horizontal")
+                }
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+                    store.showNotice("account_copied".localized)
+                } label: {
+                    Label("copy_account".localized, systemImage: "person.crop.circle")
+                }
+            }
+
             Button {
                 NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: profile.directory.path)
             } label: {
@@ -670,10 +693,15 @@ struct ProfileRow: View {
                         )
                     }
                     if profile.hasAccount {
-                        IconChip(systemImage: "doc.on.doc", help: "copy_account_format".localized(with: profile.displayAccount)) {
+                        IconChip(systemImage: "key.horizontal", help: "copy_cliproxy_json_hint".localized) {
                             NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(profile.displayAccount, forType: .string)
-                            store.showNotice("account_copied".localized)
+                            if let json = ProfileEngine.generateCLIProxyJSON(for: profile) {
+                                NSPasteboard.general.setString(json, forType: .string)
+                                store.showNotice("cliproxy_json_copied".localized)
+                            } else {
+                                NSPasteboard.general.setString(profile.account?.email ?? profile.displayAccount, forType: .string)
+                                store.showNotice("account_copied".localized)
+                            }
                         }
                     }
                     IconChip(systemImage: "pencil", help: "edit_profile".localized, action: onEdit)

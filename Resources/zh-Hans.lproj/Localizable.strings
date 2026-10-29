@@ -203,3 +203,13 @@
 "sync_to_aionui" = "同步到 AionUi";
 "synced_to_aionui" = "已同步到 AionUi";
 
+// MARK: - CLIProxyAPI & Export
+"copy_cliproxy_json" = "复制 CLIProxy 凭据";
+"copy_cliproxy_json_hint" = "点击复制 CLIProxyAPI 凭据 JSON";
+"cliproxy_json_copied" = "已复制 CLIProxy 凭据 JSON";
+"cliproxy_proxy_setting" = "导出凭据包含专属代理";
+"cliproxy_proxy_hint" = "复制的凭据将附带 proxy_url 字段，方便服务器端分流";
+"dedicated_proxy_url" = "专属代理地址";
+"proxy_url_placeholder" = "socks5://127.0.0.1:10808";
+"dedicated_proxy_url_hint" = "例如 socks5://127.0.0.1:10808 或 http://127.0.0.1:7890";
+
